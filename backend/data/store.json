@@ -20,8 +20,10 @@
         "date": "24/09/2026",
         "hash": "SHA:ADMIN_INIT_RATIFICATION"
       },
-      "passwordHash": "$2b$10$LF11Z5eIctWgTiZTWHkhHu2Gk6mdCT661WLxxyyCsIvvD1UvDqJmW",
-      "createdAt": "2026-09-23T18:41:26.830Z"
+      "passwordHash": "$2b$10$QMiHKQoC.Pc8BdKhJILxEu8gFCazKY0/lZUBUEaaVqAZdA4bhNozi",
+      "createdAt": "2026-09-23T18:41:26.830Z",
+      "bio": "",
+      "brand": "Both Brands"
     }
   ],
   "rules": [
@@ -440,6 +442,13 @@
   "sharedExpenses": [],
   "notifications": [],
   "auditLogs": [
+    {
+      "id": "log_1790191634970",
+      "action": "PROFILE_UPDATED",
+      "details": "Soham Dutta updated their executive profile details and photo.",
+      "actor": "Soham Dutta",
+      "timestamp": "2026-09-23T19:27:14.970Z"
+    },
     {
       "id": "log_1790189111030",
       "action": "USER_LOGIN",

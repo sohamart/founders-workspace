@@ -106,8 +106,12 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('user_typing', data);
   });
 
-  socket.on('stop_typing', (data) => {
-    socket.broadcast.emit('user_stop_typing', data);
+  socket.on('send_chat_message', (msg) => {
+    socket.broadcast.emit('new_message', msg);
+  });
+
+  socket.on('messages_read', (readData) => {
+    socket.broadcast.emit('messages_read', readData);
   });
 
   socket.on('disconnect', () => {

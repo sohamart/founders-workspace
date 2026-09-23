@@ -100,10 +100,15 @@ export const PortalProvider = ({ children }) => {
   const prevNotificationsRef = useRef(null);
   const toastedNotifIdsRef = useRef(new Set());
   const currentUserRef = useRef(currentUser);
+  const currentTabRef = useRef(currentTab);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  useEffect(() => {
+    currentTabRef.current = currentTab;
+  }, [currentTab]);
 
   const recentToastsRef = useRef(new Map());
 
@@ -315,7 +320,7 @@ export const PortalProvider = ({ children }) => {
 
       // 4. Fetch chat messages
       const chatRes = await apiClient.get('/chat/messages').catch(() => ({ data: { messages: [] } }));
-      if (chatRes.data && chatRes.data.messages) {
+      if (chatRes.data && Array.isArray(chatRes.data.messages)) {
         const fetchedMsgs = chatRes.data.messages;
 
         // Check for fresh incoming messages from other founders/admin across ANY page
@@ -327,23 +332,36 @@ export const PortalProvider = ({ children }) => {
 
           if (freshIncoming.length > 0) {
             freshIncoming.forEach(latestMsg => {
-              sound.playNotification();
-              const content = latestMsg.voiceNoteUrl
-                ? '🎙️ Sent a voice note memo'
-                : latestMsg.mediaUrl
-                  ? '📎 Sent an attachment'
-                  : latestMsg.text;
-              showToast(
-                `💬 ${latestMsg.senderName || 'Team Message'}`,
-                content || 'New message in workspace chat',
-                'info'
-              );
+              // Only alert if user is not in chat tab
+              if (currentTabRef.current !== 'chat') {
+                sound.playNotification();
+                const content = latestMsg.voiceNoteUrl
+                  ? '🎙️ Sent a voice note memo'
+                  : latestMsg.mediaUrl
+                    ? '📎 Sent an attachment'
+                    : latestMsg.text;
+                showToast(
+                  `💬 ${latestMsg.senderName || 'Team Message'}`,
+                  content || 'New message in workspace chat',
+                  'info'
+                );
+              }
             });
           }
         }
 
         prevMessagesRef.current = fetchedMsgs;
-        setMessages(fetchedMsgs);
+        // Merge fetched messages with any currently sending optimistic messages
+        setMessages(prev => {
+          const sendingMsgs = prev.filter(m => m.id && m.id.startsWith('temp_'));
+          const combined = [...fetchedMsgs];
+          sendingMsgs.forEach(sm => {
+            if (!combined.some(cm => cm.text === sm.text && cm.senderId === sm.senderId)) {
+              combined.push(sm);
+            }
+          });
+          return combined;
+        });
       }
 
       // Fetch rules book
@@ -493,21 +511,32 @@ export const PortalProvider = ({ children }) => {
 
   useEffect(() => {
     let socketUrl = '';
-    if (import.meta.env.VITE_SOCKET_URL) {
-      socketUrl = import.meta.env.VITE_SOCKET_URL.trim();
-    } else if (import.meta.env.VITE_API_URL) {
-      socketUrl = import.meta.env.VITE_API_URL.trim().replace(/\/api\/?$/, '');
-    } else if (window.location.hostname === 'localhost') {
-      socketUrl = 'http://localhost:5000';
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalhost) {
+      socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     } else {
-      socketUrl = 'https://founders-workspace.onrender.com';
+      // Live production environment (e.g. founderwork.weblets.bond)
+      // Must connect to Render backend unless a non-localhost custom socket URL is explicitly given
+      const customSocket = (import.meta.env.VITE_SOCKET_URL || '').trim();
+      const customApi = (import.meta.env.VITE_API_URL || '').trim();
+
+      if (customSocket && !customSocket.includes('localhost')) {
+        socketUrl = customSocket;
+      } else if (customApi && !customApi.includes('localhost')) {
+        socketUrl = customApi.replace(/\/api\/?$/, '');
+      } else {
+        socketUrl = 'https://founders-workspace.onrender.com';
+      }
     }
     socketUrl = socketUrl.replace(/\/$/, '');
 
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 15,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 25,
+      reconnectionDelay: 1500,
+      timeout: 10000
     });
 
     socketRef.current = socket;
@@ -517,19 +546,56 @@ export const PortalProvider = ({ children }) => {
     });
 
     socket.on('new_message', (newMsg) => {
+      if (!newMsg || !newMsg.id) return;
+
       setMessages(prev => {
+        // If already in list with exact ID, don't duplicate
         if (prev.some(m => m.id === newMsg.id)) return prev;
+
+        // If this is the sender's own pending message, replace the temp message
+        if (newMsg.senderId === currentUserRef.current?.id) {
+          const tempIdx = prev.findIndex(m => m.id && m.id.startsWith('temp_') && m.text === newMsg.text);
+          if (tempIdx !== -1) {
+            const next = [...prev];
+            next[tempIdx] = newMsg;
+            return next;
+          }
+        }
         return [...prev, newMsg];
       });
 
+      // Avoid duplicate alert toast during periodic polling
+      if (prevMessagesRef.current && !prevMessagesRef.current.some(m => m.id === newMsg.id)) {
+        prevMessagesRef.current = [...prevMessagesRef.current, newMsg];
+      }
+
+      // If message is from another user
       if (newMsg.senderId !== currentUserRef.current?.id) {
         sound.playNotification();
-        showToast(
-          `💬 ${newMsg.senderName || 'Team Message'}`,
-          newMsg.text || (newMsg.mediaUrl ? '📎 Sent media attachment' : 'Sent a chat message'),
-          'info'
-        );
+        // Only show toast if user is NOT currently looking at the chat screen
+        if (currentTabRef.current !== 'chat') {
+          showToast(
+            `💬 ${newMsg.senderName || 'Team Message'}`,
+            newMsg.text || (newMsg.mediaUrl ? '📎 Sent media attachment' : 'Sent a chat message'),
+            'info'
+          );
+        }
       }
+    });
+
+    socket.on('messages_read', ({ channel, recipientId, readBy }) => {
+      setMessages(prev => prev.map(m => {
+        if (recipientId) {
+          if (m.recipientId === readBy && m.senderId === recipientId) {
+            return { ...m, status: 'read' };
+          }
+        } else if (channel === 'group') {
+          if (!m.recipientId && m.senderId !== readBy) {
+            return { ...m, status: 'read' };
+          }
+        }
+        return m;
+      }));
     });
 
     const handleIncomingNotification = (notif) => {
@@ -657,6 +723,10 @@ export const PortalProvider = ({ children }) => {
         }
         return m;
       }));
+
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('messages_read', { channel, recipientId, readBy: currentUser?.id });
+      }
     } catch (err) {
       console.error('Failed to mark messages as read:', err);
     }
@@ -1136,17 +1206,66 @@ export const PortalProvider = ({ children }) => {
     }
   };
 
-  // Chat Actions
+  // Chat Actions with Instant Optimistic UI & Zero-Duplication Real-time Sync
   const sendMessage = async (messageData) => {
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const user = currentUserRef.current;
+    const optimisticMsg = {
+      id: tempId,
+      senderId: user?.id,
+      senderName: user?.name,
+      senderRole: user?.role,
+      senderAvatar: user?.avatar,
+      text: messageData.text ? messageData.text.trim() : '',
+      voiceNote: messageData.voiceNote || null,
+      mediaUrl: messageData.mediaUrl || null,
+      mediaType: messageData.mediaType || 'image',
+      recipientId: messageData.recipientId || null,
+      channelId: messageData.recipientId ? 'dm' : 'group',
+      timestamp: new Date().toISOString(),
+      status: 'sending'
+    };
+
+    // Instant optimistic render on screen
+    setMessages(prev => [...prev, optimisticMsg]);
+    sound.playPop();
+
     try {
       const res = await apiClient.post('/chat/messages', messageData);
-      if (res.data.success) {
-        sound.playPop();
-        setMessages(prev => [...prev, res.data.message]);
-        return { success: true };
+      if (res.data.success && res.data.message) {
+        const confirmedMsg = res.data.message;
+
+        setMessages(prev => {
+          // Replace temporary message by ID
+          const hasTemp = prev.some(m => m.id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m.id === tempId ? confirmedMsg : m);
+          }
+          // Avoid duplicate if socket arrived first
+          if (prev.some(m => m.id === confirmedMsg.id)) {
+            return prev;
+          }
+          return [...prev, confirmedMsg];
+        });
+
+        // Register in prevMessagesRef to avoid duplicate fresh message toast during polling
+        if (prevMessagesRef.current && !prevMessagesRef.current.some(m => m.id === confirmedMsg.id)) {
+          prevMessagesRef.current = [...prevMessagesRef.current, confirmedMsg];
+        }
+
+        // Broadcast to peers via socket if available
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('send_chat_message', confirmedMsg);
+        }
+
+        return { success: true, message: confirmedMsg };
       }
+      return { success: false };
     } catch (err) {
-      showToast('Chat Error', 'Failed to send message.', 'error');
+      // Rollback temporary message on error
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      sound.playWarning();
+      showToast('Chat Error', err.response?.data?.message || 'Failed to send message. Please retry.', 'error');
       return { success: false };
     }
   };

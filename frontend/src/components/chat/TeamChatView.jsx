@@ -69,7 +69,7 @@ export const TeamChatView = () => {
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeMessages.length]);
+  }, [activeMessages.length, selectedRecipient]);
 
   const handleMediaSelect = (e) => {
     const file = e.target.files?.[0];
@@ -383,8 +383,12 @@ export const TeamChatView = () => {
                     </span>
 
                     {isMe && (
-                      <span title={msg.status === 'read' ? 'Read' : 'Delivered'}>
-                        <CheckCheck className="w-3.5 h-3.5 text-white" />
+                      <span title={msg.status === 'read' ? 'Read' : msg.status === 'sending' ? 'Sending...' : 'Delivered'}>
+                        {msg.status === 'sending' ? (
+                          <div className="w-2.5 h-2.5 border-2 border-white/60 border-t-white rounded-full animate-spin inline-block" />
+                        ) : (
+                          <CheckCheck className={`w-3.5 h-3.5 ${msg.status === 'read' ? 'text-sky-200' : 'text-white'}`} />
+                        )}
                       </span>
                     )}
                   </div>

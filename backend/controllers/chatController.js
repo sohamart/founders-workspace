@@ -1,14 +1,14 @@
 const { getStore, saveStore } = require('../config/localStore');
 
-// @desc Get Chat Messages (filter by channel or recipient if specified)
+// @desc Get Chat Messages (filter by channel or recipient if specified, or all accessible to current user)
 // @route GET /api/chat/messages
 exports.getMessages = async (req, res) => {
   const store = getStore();
-  const { channel = 'group', recipientId } = req.query;
+  const { channel, recipientId } = req.query;
   const currentUserId = req.user.id;
 
-  // Filter messages
-  let messages = store.messages || [];
+  // Filter messages safely
+  let messages = store?.messages || [];
 
   if (recipientId) {
     // 1-on-1 Direct Messages between current user and recipient
@@ -17,8 +17,17 @@ exports.getMessages = async (req, res) => {
       (m.senderId === recipientId && m.recipientId === currentUserId)
     );
   } else if (channel === 'group') {
-    // Group messages (all messages without recipientId or with channelId === 'group')
+    // Explicit group messages
     messages = messages.filter(m => !m.recipientId || m.channelId === 'group');
+  } else {
+    // No specific filter (e.g. global polling in PortalContext)
+    // Return all messages accessible to this user:
+    // 1. All group messages
+    // 2. All 1-on-1 direct messages involving the current user (sender or recipient)
+    messages = messages.filter(m => 
+      (!m.recipientId || m.channelId === 'group') ||
+      (m.senderId === currentUserId || m.recipientId === currentUserId)
+    );
   }
 
   res.json({
@@ -54,7 +63,12 @@ exports.markAsRead = async (req, res) => {
     });
   }
 
-  if (updated) saveStore(store);
+  if (updated) {
+    saveStore(store);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('messages_read', { channel, recipientId, readBy: currentUserId });
+    }
+  }
 
   res.json({ success: true, message: 'Messages marked as read.' });
 };
