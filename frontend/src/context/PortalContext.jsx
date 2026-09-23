@@ -351,12 +351,23 @@ export const PortalProvider = ({ children }) => {
         }
 
         prevMessagesRef.current = fetchedMsgs;
-        // Merge fetched messages with any currently sending optimistic messages
+        // Merge fetched messages with any currently sending optimistic messages preserving localId
         setMessages(prev => {
-          const sendingMsgs = prev.filter(m => m.id && m.id.startsWith('temp_'));
-          const combined = [...fetchedMsgs];
+          const localIdMap = new Map();
+          prev.forEach(m => {
+            if (m.localId && m.id) localIdMap.set(m.id, m.localId);
+          });
+
+          const sendingMsgs = prev.filter(m => m.status === 'sending' || (m.id && m.id.startsWith('temp_')));
+          const combined = fetchedMsgs.map(fm => {
+            if (localIdMap.has(fm.id)) {
+              return { ...fm, localId: localIdMap.get(fm.id) };
+            }
+            return fm;
+          });
+
           sendingMsgs.forEach(sm => {
-            if (!combined.some(cm => cm.text === sm.text && cm.senderId === sm.senderId)) {
+            if (!combined.some(cm => cm.id === sm.id || (cm.text === sm.text && cm.senderId === sm.senderId))) {
               combined.push(sm);
             }
           });
@@ -552,12 +563,15 @@ export const PortalProvider = ({ children }) => {
         // If already in list with exact ID, don't duplicate
         if (prev.some(m => m.id === newMsg.id)) return prev;
 
-        // If this is the sender's own pending message, replace the temp message
+        // If this is the sender's own pending message, replace the temp message preserving localId
         if (newMsg.senderId === currentUserRef.current?.id) {
-          const tempIdx = prev.findIndex(m => m.id && m.id.startsWith('temp_') && m.text === newMsg.text);
+          const tempIdx = prev.findIndex(m => 
+            (m.id && m.id.startsWith('temp_') && m.text === newMsg.text) || 
+            (m.localId && m.text === newMsg.text)
+          );
           if (tempIdx !== -1) {
             const next = [...prev];
-            next[tempIdx] = newMsg;
+            next[tempIdx] = { ...newMsg, localId: prev[tempIdx].localId || prev[tempIdx].id };
             return next;
           }
         }
@@ -1212,6 +1226,7 @@ export const PortalProvider = ({ children }) => {
     const user = currentUserRef.current;
     const optimisticMsg = {
       id: tempId,
+      localId: tempId,
       senderId: user?.id,
       senderName: user?.name,
       senderRole: user?.role,
@@ -1233,17 +1248,17 @@ export const PortalProvider = ({ children }) => {
     try {
       const res = await apiClient.post('/chat/messages', messageData);
       if (res.data.success && res.data.message) {
-        const confirmedMsg = res.data.message;
+        const confirmedMsg = { ...res.data.message, localId: tempId };
 
         setMessages(prev => {
-          // Replace temporary message by ID
-          const hasTemp = prev.some(m => m.id === tempId);
+          // Replace temporary message by ID preserving localId
+          const hasTemp = prev.some(m => m.id === tempId || m.localId === tempId);
           if (hasTemp) {
-            return prev.map(m => m.id === tempId ? confirmedMsg : m);
+            return prev.map(m => (m.id === tempId || m.localId === tempId) ? confirmedMsg : m);
           }
           // Avoid duplicate if socket arrived first
           if (prev.some(m => m.id === confirmedMsg.id)) {
-            return prev;
+            return prev.map(m => m.id === confirmedMsg.id ? confirmedMsg : m);
           }
           return [...prev, confirmedMsg];
         });
@@ -1263,7 +1278,7 @@ export const PortalProvider = ({ children }) => {
       return { success: false };
     } catch (err) {
       // Rollback temporary message on error
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessages(prev => prev.filter(m => m.id !== tempId && m.localId !== tempId));
       sound.playWarning();
       showToast('Chat Error', err.response?.data?.message || 'Failed to send message. Please retry.', 'error');
       return { success: false };
