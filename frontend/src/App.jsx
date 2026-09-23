@@ -259,21 +259,6 @@ const MainPortal = () => {
       {showSplashScreen && (
         <SplashScreen onFinish={() => setShowSplashScreen(false)} />
       )}
-
-      {/* Unified Executive React-Toastify Notification System */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3800}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        toastClassName="rounded-2xl border border-slate-200/90 shadow-2xl backdrop-blur-xl font-sans"
-      />
     </div>
   );
 };
@@ -328,6 +313,21 @@ export default function App() {
     <ErrorBoundary>
       <PortalProvider>
         <MainPortal />
+        {/* Unified Executive React-Toastify Notification System permanently mounted at root */}
+        <ToastContainer
+          position="top-right"
+          autoClose={3500}
+          limit={3}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss={false}
+          draggable
+          pauseOnHover
+          theme="light"
+          toastClassName="rounded-2xl border border-slate-200/90 shadow-2xl backdrop-blur-xl font-sans"
+        />
       </PortalProvider>
     </ErrorBoundary>
   );

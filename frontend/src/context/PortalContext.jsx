@@ -105,7 +105,26 @@ export const PortalProvider = ({ children }) => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
+  const recentToastsRef = useRef(new Map());
+
   const showToast = useCallback((title, message, type = 'info') => {
+    // 1. Strict Deduplication: Ignore identical toast within 2500ms
+    const key = `${type}:${title}:${message || ''}`;
+    const now = Date.now();
+    const lastTime = recentToastsRef.current.get(key) || 0;
+    if (now - lastTime < 2500) {
+      return;
+    }
+    recentToastsRef.current.set(key, now);
+    if (recentToastsRef.current.size > 50) {
+      recentToastsRef.current.clear();
+    }
+
+    // 2. When a success action occurs, dismiss previous error toasts immediately
+    if (type === 'success') {
+      toast.dismiss();
+    }
+
     if (type === 'warning' || type === 'error') {
       sound.playWarning();
     } else {
@@ -119,9 +138,12 @@ export const PortalProvider = ({ children }) => {
       </div>
     );
 
+    const toastId = `${type}_${title}_${message || ''}`.replace(/[^a-zA-Z0-9]/g, '_');
+
     const toastConfig = {
+      toastId,
       position: 'top-right',
-      autoClose: 3800,
+      autoClose: 3500,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
