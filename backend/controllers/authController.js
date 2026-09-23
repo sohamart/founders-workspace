@@ -51,6 +51,15 @@ exports.login = async (req, res) => {
     });
   }
 
+  // If Coming Soon is active and Admin has turned off bypass, only Super Admin can sign in
+  const settings = store.settings || {};
+  if (settings.comingSoonActive !== false && settings.allowBypass === false && user.role !== 'superadmin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Portal is currently in Private Assembly. Founder access is administratively locked by Lead Admin.'
+    });
+  }
+
   const token = generateToken(user);
 
   // Record audit log
@@ -251,12 +260,26 @@ exports.factoryReset = async (req, res) => {
 // @desc Verify Bypass Key for Coming Soon
 // @route POST /api/auth/verify-bypass
 exports.verifyBypassKey = async (req, res) => {
+  const store = getStore();
+  const settings = store.settings || {};
+
+  // If Admin turned off bypass, reject all passcode bypass attempts
+  if (settings.allowBypass === false) {
+    return res.status(403).json({
+      success: false,
+      message: 'Portal bypass is currently disabled by the Lead Admin.'
+    });
+  }
+
   const { key } = req.body;
   if (!key) {
     return res.status(400).json({ success: false, message: 'Passcode required.' });
   }
 
-  if (key === ADMIN_BYPASS_KEY || key === 'ADMIN' || key === 'FOUNDERS2026') {
+  const configuredPasscode = (settings.bypassPasscode || 'FOUNDER2026').trim();
+  const validKeys = [configuredPasscode, ADMIN_BYPASS_KEY, 'ADMIN', 'FOUNDERS2026'];
+
+  if (validKeys.includes(key.trim())) {
     return res.json({ success: true, message: 'Passcode verified. Access granted.' });
   }
 

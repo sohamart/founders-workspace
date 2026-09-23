@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { KeyRound, Sparkles, Lock, Calendar, ExternalLink } from 'lucide-react';
 
+import { LoginModal } from './LoginModal';
+
 export const ComingSoonModal = () => {
   const { verifyBypass, portalSettings } = usePortal();
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const isBypassAllowed = portalSettings?.allowBypass !== false;
 
   // Target Launch Date countdown calculation
   const targetDateStr = portalSettings?.targetLaunchDate || '2026-10-01T00:00:00.000Z';
@@ -64,6 +69,10 @@ export const ComingSoonModal = () => {
       return 'October 1, 2026 • 00:00 UTC';
     }
   })();
+
+  if (showAdminLogin) {
+    return <LoginModal onBack={() => setShowAdminLogin(false)} />;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-gradient-to-br from-amber-50/95 via-orange-50/85 to-stone-100/95 backdrop-blur-xl text-slate-800 animate-fade-in overflow-y-auto">
@@ -151,18 +160,42 @@ export const ComingSoonModal = () => {
           </div>
         </div>
 
-        {/* Action Button: Bypass Passcode */}
-        <div className="pt-0.5">
+        {/* Action Button: Bypass Passcode or Disabled Notice */}
+        <div className="pt-0.5 space-y-2.5">
+          {isBypassAllowed ? (
+            <>
+              <button
+                onClick={() => setShowPasscodeModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 px-4 sm:px-5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-lg shadow-orange-600/20 active:scale-[0.99] transition-all cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4 shrink-0" />
+                <span>Founder & Admin Passcode Unlock</span>
+              </button>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-mono">
+                Authorized personnel only • All bypass attempts logged
+              </p>
+            </>
+          ) : (
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-left space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Passcode Bypass Disabled</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-snug">
+                Portal unlock is currently disabled by the Lead Admin. Please await the official launch.
+              </p>
+            </div>
+          )}
+
+          {/* Lead Admin Sign In Direct Option */}
           <button
-            onClick={() => setShowPasscodeModal(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 px-4 sm:px-5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-lg shadow-orange-600/20 active:scale-[0.99] transition-all"
+            type="button"
+            onClick={() => setShowAdminLogin(true)}
+            className="w-full py-2 px-3 rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
           >
-            <KeyRound className="w-4 h-4 shrink-0" />
-            <span>Founder & Admin Passcode Unlock</span>
+            <KeyRound className="w-3.5 h-3.5 text-orange-600" />
+            <span>Lead Admin Sign In</span>
           </button>
-          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 font-mono">
-            Authorized personnel only • All bypass attempts logged
-          </p>
         </div>
 
         {/* Passcode Modal Overlay */}

@@ -56,67 +56,67 @@ export const SplashScreen = ({ onFinish }) => {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#070B14] text-white px-4 transition-all duration-700 select-none ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-amber-50/95 via-orange-50/85 to-stone-100/95 text-slate-800 px-4 transition-all duration-700 select-none overflow-hidden ${
         isFadingOut ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
       }`}
     >
       {/* Background Ambient Glowing Orbs */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-orange-600/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-cyan-600/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] sm:w-[500px] h-[340px] sm:h-[500px] bg-gradient-to-tr from-orange-400/20 to-amber-300/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute bottom-10 right-10 w-64 h-64 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
       
-      {/* Central Content Box */}
-      <div className="relative z-10 flex flex-col items-center text-center max-w-md w-full space-y-7">
+      {/* Central Glassmorphic Card */}
+      <div className="relative z-10 flex flex-col items-center text-center max-w-md w-full bg-white/95 backdrop-blur-2xl border border-orange-200/90 rounded-3xl p-7 sm:p-9 shadow-2xl shadow-orange-950/10 space-y-6 my-auto">
         
         {/* Animated Brand Emblem */}
         <div className="relative flex items-center justify-center">
-          {/* Outer Pulsing Neon Ring */}
-          <div className="absolute w-28 h-28 rounded-3xl bg-gradient-to-tr from-orange-500/30 to-cyan-500/30 blur-md animate-spin-slow" />
-          <div className="absolute w-24 h-24 rounded-2xl border border-orange-500/40 animate-ping opacity-25" />
+          {/* Outer Pulsing Glow */}
+          <div className="absolute w-24 h-24 rounded-3xl bg-gradient-to-tr from-orange-500/25 to-amber-400/30 blur-md animate-spin-slow" />
+          <div className="absolute w-20 h-20 rounded-2xl border border-orange-400/40 animate-ping opacity-30" />
           
           {/* Core Icon Platter */}
-          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 border border-slate-700/80 shadow-2xl flex items-center justify-center">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-600/40">
-              <Zap className="w-6 h-6 text-white animate-bounce" />
+          <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-white border border-orange-200/90 shadow-lg flex items-center justify-center">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-md shadow-orange-600/30">
+              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-bounce" />
             </div>
           </div>
         </div>
 
         {/* Brand Names & Tagline */}
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700/80 text-[11px] font-mono tracking-widest text-slate-400 uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>Executive Portal v2.0</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-orange-100/90 border border-orange-300/80 text-[10px] font-mono tracking-widest text-orange-900 uppercase font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <span>Executive Joint Venture Portal</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
-            <span className="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+          <div className="flex items-center justify-center gap-2 pt-0.5">
+            <span className="bg-slate-900 text-white px-3 py-1 rounded-xl text-xs sm:text-sm font-mono font-bold tracking-tight shadow-xs">
               Weblets®
             </span>
-            <span className="text-orange-500 font-light">×</span>
-            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-300 bg-clip-text text-transparent">
+            <span className="text-orange-500 font-bold text-xs sm:text-sm">×</span>
+            <span className="bg-gradient-to-r from-orange-600 to-amber-600 text-white px-3 py-1 rounded-xl text-xs sm:text-sm font-mono font-bold tracking-tight shadow-xs">
               StackAdda™
             </span>
-          </h1>
+          </div>
 
-          <p className="text-xs font-medium text-slate-400 tracking-wide">
+          <p className="text-xs font-semibold text-slate-500 tracking-wide pt-0.5">
             Three Founders. Two Brands. One Standard.
           </p>
         </div>
 
         {/* Dynamic Progress Bar & Status Text */}
-        <div className="w-full space-y-2.5 pt-2">
+        <div className="w-full space-y-2.5 pt-1">
           <div className="flex items-center justify-between text-[11px] font-mono">
-            <span className="text-slate-400 flex items-center gap-1.5 line-clamp-1">
-              <Cpu className="w-3.5 h-3.5 text-cyan-400 animate-spin-slow shrink-0" />
+            <span className="text-slate-600 flex items-center gap-1.5 line-clamp-1 font-medium">
+              <Cpu className="w-3.5 h-3.5 text-orange-600 animate-spin-slow shrink-0" />
               <span>{statusText}</span>
             </span>
-            <span className="text-orange-400 font-bold ml-2 shrink-0">{progress}%</span>
+            <span className="text-orange-600 font-black ml-2 shrink-0">{progress}%</span>
           </div>
 
-          {/* Glowing Track */}
-          <div className="w-full h-2 rounded-full bg-slate-800/80 p-0.5 border border-slate-700/50 overflow-hidden shadow-inner">
+          {/* Clean Progress Track */}
+          <div className="w-full h-2 rounded-full bg-orange-50 p-0.5 border border-orange-200/80 overflow-hidden shadow-inner">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-cyan-400 transition-all duration-150 ease-out shadow-lg shadow-orange-500/50"
+              className="h-full rounded-full bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 transition-all duration-150 ease-out shadow-sm shadow-orange-500/40"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -125,7 +125,7 @@ export const SplashScreen = ({ onFinish }) => {
         {/* Skip / Enter Action */}
         <button
           onClick={handleSkip}
-          className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 pt-2 cursor-pointer font-mono"
+          className="text-[11px] text-slate-400 hover:text-orange-700 transition-colors flex items-center gap-1 cursor-pointer font-mono pt-1"
         >
           <span>Skip initialization</span>
           <ArrowRight className="w-3 h-3" />

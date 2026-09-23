@@ -13,7 +13,14 @@ export const PortalProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
   const [token, setToken] = useState(() => localStorage.getItem('founders_token') || null);
-  const [isBypassed, setIsBypassed] = useState(() => localStorage.getItem('founders_bypassed') === 'true');
+  const [isBypassed, setIsBypassed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('founders_user');
+      const u = saved ? JSON.parse(saved) : null;
+      if (u && u.role === 'superadmin') return true;
+    } catch (e) {}
+    return false;
+  });
   const [isSuspended, setIsSuspended] = useState(false);
   const [mustOnboard, setMustOnboard] = useState(false);
 
@@ -366,24 +373,50 @@ export const PortalProvider = ({ children }) => {
     }
   }, []);
 
+  // Strict bypass evaluator: if admin bypass is off, NO localStorage bypass is honored
+  const evaluateBypass = useCallback((settings, user = currentUserRef.current) => {
+    // 1. Super Admin is always granted access to govern the workspace
+    if (user && user.role === 'superadmin') {
+      return true;
+    }
+
+    // 2. If Coming Soon is inactive globally, access is open to everyone
+    if (settings && settings.comingSoonActive === false) {
+      return true;
+    }
+
+    // 3. Strictest rule: If Admin bypass is off, NO localStorage bypass is honored!
+    // "admin bypass off korle kono localstorage a bypass thakleo bypass hobe na coming soon thakbe"
+    if (settings && settings.allowBypass === false) {
+      try {
+        localStorage.removeItem('founders_bypassed');
+      } catch (e) {}
+      return false;
+    }
+
+    // 4. If Coming Soon is active AND allowBypass is ON (true):
+    // Allow if user has valid passcode bypass saved in browser
+    return localStorage.getItem('founders_bypassed') === 'true';
+  }, []);
+
   const fetchPortalSettings = useCallback(async () => {
     try {
       const res = await apiClient.get('/admin/settings');
       if (res.data && res.data.settings) {
-        setPortalSettings(res.data.settings);
-        if (res.data.settings.comingSoonActive === false) {
-          setIsBypassed(true);
-        }
+        const s = res.data.settings;
+        setPortalSettings(s);
+        const shouldBypass = evaluateBypass(s, currentUserRef.current);
+        setIsBypassed(shouldBypass);
       }
     } catch (e) {
       console.warn('Failed to load portal settings:', e);
     }
-  }, []);
+  }, [evaluateBypass]);
 
   // Check current user session on boot
   useEffect(() => {
     const initAuth = async () => {
-      fetchPortalSettings();
+      await fetchPortalSettings();
       const storedToken = localStorage.getItem('founders_token');
       if (storedToken) {
         try {
@@ -398,9 +431,11 @@ export const PortalProvider = ({ children }) => {
               }
             } catch (err) {}
             setCurrentUser(finalUser);
+            currentUserRef.current = finalUser;
             localStorage.setItem('founders_user', JSON.stringify(finalUser));
             setIsSuspended(finalUser.status === 'suspended');
             setMustOnboard(finalUser.mustChangePassword);
+            setIsBypassed(evaluateBypass(portalSettings, finalUser));
           }
         } catch (e) {
           // Token invalid or suspended
@@ -412,7 +447,7 @@ export const PortalProvider = ({ children }) => {
       refreshData();
     };
     initAuth();
-  }, [refreshData, fetchPortalSettings]);
+  }, [refreshData, fetchPortalSettings, evaluateBypass]);
 
   // Periodic polling for realtime updates (fast 3.5s for instant chat & task sync)
   useEffect(() => {
@@ -502,8 +537,10 @@ export const PortalProvider = ({ children }) => {
 
     socket.on('settings_updated', (newSettings) => {
       setPortalSettings(newSettings);
-      if (newSettings.comingSoonActive === false) {
-        setIsBypassed(true);
+      const shouldBypass = evaluateBypass(newSettings, currentUserRef.current);
+      setIsBypassed(shouldBypass);
+      if (!shouldBypass && currentUserRef.current?.role !== 'superadmin') {
+        showToast('🔒 Access Restricted', 'Lead Admin has engaged Coming Soon lockdown mode.', 'warning');
       }
     });
 
@@ -607,9 +644,12 @@ export const PortalProvider = ({ children }) => {
     try {
       const res = await apiClient.post('/admin/settings', newSettings);
       if (res.data && res.data.success) {
-        setPortalSettings(res.data.settings);
+        const updated = res.data.settings;
+        setPortalSettings(updated);
+        const shouldBypass = evaluateBypass(updated, currentUserRef.current);
+        setIsBypassed(shouldBypass);
         showToast('Settings Saved', 'Portal Gateway access controls updated.', 'success');
-        return { success: true, settings: res.data.settings };
+        return { success: true, settings: updated };
       }
     } catch (err) {
       showToast('Error', err.response?.data?.message || 'Failed to update settings', 'error');
@@ -633,12 +673,18 @@ export const PortalProvider = ({ children }) => {
         const { token, user } = res.data;
         setToken(token);
         setCurrentUser(user);
+        currentUserRef.current = user;
         setIsSuspended(user.status === 'suspended');
         setMustOnboard(user.mustChangePassword);
         localStorage.setItem('founders_token', token);
         localStorage.setItem('founders_user', JSON.stringify(user));
-        localStorage.setItem('founders_bypassed', 'true');
-        setIsBypassed(true);
+
+        const shouldBypass = evaluateBypass(portalSettings, user);
+        setIsBypassed(shouldBypass);
+        if (shouldBypass) {
+          localStorage.setItem('founders_bypassed', 'true');
+        }
+
         showToast('Login Successful', `Welcome back, ${user.name}!`, 'success');
         refreshData();
         return { success: true, user };
@@ -658,10 +704,13 @@ export const PortalProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('founders_token');
     localStorage.removeItem('founders_user');
+    currentUserRef.current = null;
     setToken(null);
     setCurrentUser(null);
     setIsSuspended(false);
     setMustOnboard(false);
+    const shouldBypass = evaluateBypass(portalSettings, null);
+    setIsBypassed(shouldBypass);
     showToast('Logged Out', 'You have been safely signed out.', 'info');
   };
 
@@ -671,6 +720,7 @@ export const PortalProvider = ({ children }) => {
       if (res.data.success) {
         setToken(res.data.token);
         setCurrentUser(res.data.user);
+        currentUserRef.current = res.data.user;
         setMustOnboard(false);
         localStorage.setItem('founders_token', res.data.token);
         localStorage.setItem('founders_user', JSON.stringify(res.data.user));
@@ -685,6 +735,10 @@ export const PortalProvider = ({ children }) => {
   };
 
   const verifyBypass = async (passcode) => {
+    if (portalSettings?.allowBypass === false) {
+      showToast('Access Locked', 'Passcode bypass is currently disabled by Lead Admin.', 'error');
+      return { success: false, message: 'Bypass is disabled by Admin' };
+    }
     try {
       const res = await apiClient.post('/auth/verify-bypass', { key: passcode });
       if (res.data.success) {
@@ -694,8 +748,9 @@ export const PortalProvider = ({ children }) => {
         return { success: true };
       }
     } catch (err) {
-      showToast('Access Denied', 'Invalid access passcode.', 'error');
-      return { success: false };
+      const msg = err.response?.data?.message || 'Invalid access passcode.';
+      showToast('Access Denied', msg, 'error');
+      return { success: false, message: msg };
     }
   };
 

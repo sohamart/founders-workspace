@@ -3,9 +3,9 @@ import { usePortal } from '../../context/PortalContext';
 import { Lock, Mail, ShieldCheck, ArrowRight, Sparkles, KeyRound } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
 
-export const LoginModal = () => {
+export const LoginModal = ({ onBack }) => {
   const { login } = usePortal();
-  const [email, setEmail] = useState('sohamduttabwn@gmail.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,13 +24,6 @@ export const LoginModal = () => {
     } else {
       sound.playChime();
     }
-  };
-
-  const handleFillAdmin = () => {
-    sound.playPop();
-    setEmail('sohamduttabwn@gmail.com');
-    setPassword('Admin12345');
-    setError('');
   };
 
   return (
@@ -68,7 +61,7 @@ export const LoginModal = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="sohamduttabwn@gmail.com"
+                placeholder="name@company.com"
                 required
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50 font-medium"
               />
@@ -83,7 +76,7 @@ export const LoginModal = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Admin12345"
+                placeholder="••••••••••••"
                 required
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50"
               />
@@ -100,20 +93,17 @@ export const LoginModal = () => {
           </button>
         </form>
 
-        {/* Lead Admin 1-Click Auto-fill */}
-        <div className="pt-2 border-t border-slate-100 space-y-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
-            Lead Admin Access
-          </p>
-          <button
-            type="button"
-            onClick={handleFillAdmin}
-            className="w-full py-2.5 px-3 rounded-xl border border-orange-200/80 bg-orange-50/70 hover:bg-orange-100 text-orange-950 font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs shadow-xs"
-          >
-            <KeyRound className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-            <span>Auto-fill Lead Admin (sohamduttabwn@gmail.com)</span>
-          </button>
-        </div>
+        {onBack && (
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-xs text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              ← Back to Launch Countdown
+            </button>
+          </div>
+        )}
 
       </div>
     </div>
