@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Lock, Mail, ShieldCheck, ArrowRight, Sparkles, KeyRound } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Sparkles, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
 
 export const LoginModal = ({ onBack }) => {
   const { login } = usePortal();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -73,13 +74,21 @@ export const LoginModal = ({ onBack }) => {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg transition-colors focus:outline-none"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { KeyRound, Sparkles, Lock, Calendar, ExternalLink } from 'lucide-react';
+import { KeyRound, Sparkles, Lock, Calendar, ExternalLink, Eye, EyeOff } from 'lucide-react';
 
 import { LoginModal } from './LoginModal';
 
@@ -9,6 +9,7 @@ export const ComingSoonModal = () => {
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [passcode, setPasscode] = useState('');
+  const [showPasscode, setShowPasscode] = useState(false);
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -214,14 +215,24 @@ export const ComingSoonModal = () => {
 
               <form onSubmit={handleBypassSubmit} className="space-y-3.5 sm:space-y-4">
                 <div>
-                  <input
-                    type="password"
-                    value={passcode}
-                    onChange={(e) => setPasscode(e.target.value)}
-                    placeholder="Enter bypass passcode..."
-                    className="w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-orange-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50/30"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPasscode ? 'text' : 'password'}
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                      placeholder="Enter bypass passcode..."
+                      className="w-full pl-3.5 pr-10 py-2 sm:py-2.5 rounded-xl border border-orange-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50/30"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasscode(!showPasscode)}
+                      className="absolute right-3 top-2 text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg transition-colors focus:outline-none"
+                      aria-label={showPasscode ? 'Hide passcode' : 'Show passcode'}
+                    >
+                      {showPasscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                   {error && <p className="text-[10px] sm:text-[11px] text-rose-600 mt-1.5 font-medium">{error}</p>}
                 </div>
 
