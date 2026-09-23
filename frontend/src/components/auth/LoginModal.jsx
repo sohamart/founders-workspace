@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Lock, Mail, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Sparkles, KeyRound } from 'lucide-react';
+import { sound } from '../../utils/soundFx';
 
 export const LoginModal = () => {
   const { login } = usePortal();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('sohamduttabwn@gmail.com');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,21 +16,25 @@ export const LoginModal = () => {
     setIsLoading(true);
     setError('');
 
-    const res = await login(email, password);
+    const res = await login(email.trim(), password);
     setIsLoading(false);
     if (!res.success) {
-      setError(res.message);
+      sound.playWarning();
+      setError(res.message || 'Invalid credentials.');
+    } else {
+      sound.playChime();
     }
   };
 
-  const handleQuickLogin = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    login(demoEmail, demoPass);
+  const handleFillAdmin = () => {
+    sound.playPop();
+    setEmail('sohamduttabwn@gmail.com');
+    setPassword('Admin12345');
+    setError('');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-slate-800">
       <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-slate-800 space-y-6">
         
         {/* Brand Header */}
@@ -63,9 +68,9 @@ export const LoginModal = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="founder@weblets.bond"
+                placeholder="sohamduttabwn@gmail.com"
                 required
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50"
+                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50 font-medium"
               />
             </div>
           </div>
@@ -78,7 +83,7 @@ export const LoginModal = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Admin12345"
                 required
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-slate-50"
               />
@@ -88,51 +93,31 @@ export const LoginModal = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-semibold text-xs shadow-md shadow-orange-600/20 transition-all cursor-pointer disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
           >
-            {isLoading ? 'Verifying Credentials...' : 'Authenticate & Enter Portal'}
+            <span>{isLoading ? 'Verifying Credentials...' : 'Authenticate & Enter Portal'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        {/* Quick Demo Switcher */}
-        <div className="pt-2 border-t border-slate-100">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
-            Quick 1-Click Executive Access
+        {/* Lead Admin 1-Click Auto-fill */}
+        <div className="pt-2 border-t border-slate-100 space-y-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
+            Lead Admin Access
           </p>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin@weblets.bond', 'admin123')}
-              className="p-2 rounded-xl border border-orange-200 bg-orange-50/70 hover:bg-orange-100 text-orange-950 font-medium text-left truncate transition-colors cursor-pointer"
-            >
-              👑 SSA Lead Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('soham@weblets.bond', 'password123')}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-medium text-left truncate transition-colors"
-            >
-              🚀 Soham (Product)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('sayantan@weblets.bond', 'password123')}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-medium text-left truncate transition-colors"
-            >
-              🎨 Sayantan (UI/UX)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('achinta@weblets.bond', 'password123')}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-medium text-left truncate transition-colors"
-            >
-              🤝 Achinta (Client)
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleFillAdmin}
+            className="w-full py-2.5 px-3 rounded-xl border border-orange-200/80 bg-orange-50/70 hover:bg-orange-100 text-orange-950 font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs shadow-xs"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+            <span>Auto-fill Lead Admin (sohamduttabwn@gmail.com)</span>
+          </button>
         </div>
 
       </div>
     </div>
   );
 };
+
+export default LoginModal;
