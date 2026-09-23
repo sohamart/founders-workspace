@@ -470,7 +470,18 @@ export const PortalProvider = ({ children }) => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
+    let socketUrl = '';
+    if (import.meta.env.VITE_SOCKET_URL) {
+      socketUrl = import.meta.env.VITE_SOCKET_URL.trim();
+    } else if (import.meta.env.VITE_API_URL) {
+      socketUrl = import.meta.env.VITE_API_URL.trim().replace(/\/api\/?$/, '');
+    } else if (window.location.hostname === 'localhost') {
+      socketUrl = 'http://localhost:5000';
+    } else {
+      socketUrl = 'https://founders-workspace.onrender.com';
+    }
+    socketUrl = socketUrl.replace(/\/$/, '');
+
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 15,

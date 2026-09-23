@@ -56,16 +56,43 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mount Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/tasks', require('./routes/taskRoutes'));
-app.use('/api/clients', require('./routes/clientRoutes'));
-app.use('/api/meetings', require('./routes/meetingRoutes'));
-app.use('/api/chat', require('./routes/chatRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api/upload', require('./routes/uploadRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-app.use('/api/activity', require('./routes/activityRoutes'));
+// Mount Routes (Supports both /api/* and direct /* paths for maximum resilience)
+const authRoutes = require('./routes/authRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const clientRoutes = require('./routes/clientRoutes');
+const meetingRoutes = require('./routes/meetingRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const activityRoutes = require('./routes/activityRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
+app.use('/api/tasks', taskRoutes);
+app.use('/tasks', taskRoutes);
+
+app.use('/api/clients', clientRoutes);
+app.use('/clients', clientRoutes);
+
+app.use('/api/meetings', meetingRoutes);
+app.use('/meetings', meetingRoutes);
+
+app.use('/api/chat', chatRoutes);
+app.use('/chat', chatRoutes);
+
+app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
+
+app.use('/api/upload', uploadRoutes);
+app.use('/upload', uploadRoutes);
+
+app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
+
+app.use('/api/activity', activityRoutes);
+app.use('/activity', activityRoutes);
 
 // Socket.io Real-time Handlers
 io.on('connection', (socket) => {
