@@ -1,0 +1,1325 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import apiClient from '../api/client';
+import { sound } from '../utils/soundFx';
+import { toast } from 'react-toastify';
+import { io } from 'socket.io-client';
+
+const PortalContext = createContext(null);
+
+export const PortalProvider = ({ children }) => {
+  // Auth state
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('founders_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [token, setToken] = useState(() => localStorage.getItem('founders_token') || null);
+  const [isBypassed, setIsBypassed] = useState(() => localStorage.getItem('founders_bypassed') === 'true');
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [mustOnboard, setMustOnboard] = useState(false);
+
+  // App UI state with persistent tab tracking (URL hash & localStorage sync)
+  const [currentTab, setCurrentTabState] = useState(() => {
+    try {
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin'];
+      if (hash && validTabs.includes(hash)) return hash;
+      const saved = localStorage.getItem('founders_active_tab');
+      if (saved && validTabs.includes(saved)) return saved;
+    } catch (e) {}
+    return 'dashboard';
+  });
+
+  const setCurrentTab = (tab) => {
+    setCurrentTabState(tab);
+    try {
+      localStorage.setItem('founders_active_tab', tab);
+      window.location.hash = tab;
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin'];
+      if (hash && validTabs.includes(hash)) {
+        setCurrentTabState(hash);
+        localStorage.setItem('founders_active_tab', hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(sound.isMuted);
+
+  // Portal Gateway & Launch Settings
+  const [portalSettings, setPortalSettings] = useState({
+    comingSoonActive: true,
+    allowBypass: true,
+    targetLaunchDate: '2026-10-01T00:00:00.000Z',
+    bypassPasscode: 'FOUNDER2026'
+  });
+
+  // Core Data state
+  const [tasks, setTasks] = useState([]);
+  const [clientProjects, setClientProjects] = useState([]);
+  const [meeting, setMeeting] = useState(null);
+  const [meetings, setMeetings] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [adminRatification, setAdminRatification] = useState(null);
+  const [foundersSignatures, setFoundersSignatures] = useState([]);
+  const [founders, setFounders] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [inactivityRadar, setInactivityRadar] = useState([]);
+  const [securityFreeze, setSecurityFreeze] = useState(false);
+
+  // Notification Engine state (synced with backend /api/notifications)
+  const [notifications, setNotifications] = useState([]);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const prevMessagesRef = useRef([]);
+  const prevPendingTasksRef = useRef([]);
+  const prevReviewPendingTasksRef = useRef([]);
+  const prevPendingCredsRef = useRef([]);
+  const prevNotificationsRef = useRef(null);
+  const toastedNotifIdsRef = useRef(new Set());
+  const currentUserRef = useRef(currentUser);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  const showToast = useCallback((title, message, type = 'info') => {
+    if (type === 'warning' || type === 'error') {
+      sound.playWarning();
+    } else {
+      sound.playPop();
+    }
+
+    const toastContent = (
+      <div className="text-xs">
+        <p className="font-bold text-slate-900 leading-tight">{title}</p>
+        {message && <p className="text-slate-600 mt-0.5 leading-snug">{message}</p>}
+      </div>
+    );
+
+    const toastConfig = {
+      position: 'top-right',
+      autoClose: 3800,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      theme: 'light'
+    };
+
+    if (type === 'success') {
+      toast.success(toastContent, toastConfig);
+    } else if (type === 'error') {
+      toast.error(toastContent, toastConfig);
+    } else if (type === 'warning') {
+      toast.warn(toastContent, toastConfig);
+    } else {
+      toast.info(toastContent, toastConfig);
+    }
+  }, []);
+
+  // Single-dispatch toast deduplicator for notifications
+  const toastNotificationOnce = useCallback((notif) => {
+    if (!notif || !notif.id) return;
+    if (toastedNotifIdsRef.current.has(notif.id)) return;
+    toastedNotifIdsRef.current.add(notif.id);
+
+    const user = currentUserRef.current;
+    const isTargetUser = notif.targetUserId ? (notif.targetUserId === user?.id) : true;
+    const isTargetRole = notif.targetRole ? (notif.targetRole === 'all' || notif.targetRole === user?.role) : true;
+    if (!isTargetUser || !isTargetRole) return;
+
+    if (notif.type === 'strike_issued' || notif.priority === 'urgent' || notif.type === 'warning') {
+      sound.playDangerAlarm();
+      showToast(notif.title || '🚨 Alert', notif.message || notif.desc, 'warning');
+    } else if (notif.type === 'success') {
+      sound.playChime();
+      showToast(notif.title || 'Success', notif.message || notif.desc, 'success');
+    } else {
+      sound.playNotification();
+      showToast(notif.title || 'Notification', notif.message || notif.desc, notif.type || 'info');
+    }
+  }, [showToast]);
+
+  // Fetch all live data from backend API
+  const refreshData = useCallback(async () => {
+    try {
+      const user = currentUserRef.current;
+
+      // 1. Fetch tasks
+      const tasksRes = await apiClient.get('/tasks').catch(() => ({ data: { tasks: [] } }));
+      if (tasksRes.data && tasksRes.data.tasks) {
+        const fetchedTasks = tasksRes.data.tasks;
+        setTasks(fetchedTasks);
+
+        // Check for new requests / status changes
+        if (user) {
+          if (user.role === 'superadmin') {
+            // Admin: Check for new task creation requests submitted by founders
+            const currentPending = fetchedTasks.filter(t => t.status === 'pending_approval' || t.approvalStatus === 'pending');
+            if (prevPendingTasksRef.current.length > 0) {
+              const newRequests = currentPending.filter(t => 
+                !prevPendingTasksRef.current.some(p => p.id === t.id) &&
+                t.requesterId !== user.id
+              );
+
+              if (newRequests.length > 0) {
+                const latest = newRequests[newRequests.length - 1];
+                sound.playNotification();
+                showToast(
+                  '🛡️ Task Creation Request',
+                  `Founder ${latest.requesterName || ''} requested approval for "${latest.title}".`,
+                  'info'
+                );
+                setNotifications(prev => [
+                  {
+                    id: `notif_${Date.now()}`,
+                    title: `Task Request: ${latest.title}`,
+                    desc: `Requested by ${latest.requesterName || 'Founder'}`,
+                    time: 'Just now',
+                    type: 'task',
+                    read: false
+                  },
+                  ...prev
+                ]);
+              }
+            }
+            prevPendingTasksRef.current = currentPending;
+
+            // Admin: Check for new Progress Proof Review requests
+            const currentProofReview = fetchedTasks.filter(t => t.status === 'review_pending');
+            if (prevReviewPendingTasksRef.current.length > 0) {
+              const newProofs = currentProofReview.filter(t => 
+                !prevReviewPendingTasksRef.current.some(p => p.id === t.id)
+              );
+
+              if (newProofs.length > 0) {
+                const latestProof = newProofs[newProofs.length - 1];
+                sound.playNotification();
+                showToast(
+                  '📈 Progress Proof Submitted',
+                  `Proof review submitted for "${latestProof.title}".`,
+                  'info'
+                );
+              }
+            }
+            prevReviewPendingTasksRef.current = currentProofReview;
+          } else {
+            // Founder: Check if my pending task got approved & activated by Admin
+            if (prevPendingTasksRef.current.length > 0) {
+              const myNewlyApproved = fetchedTasks.filter(t => 
+                (t.requesterId === user.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(user.id))) &&
+                (t.status === 'todo' || t.approvalStatus === 'approved') &&
+                prevPendingTasksRef.current.some(p => p.id === t.id && (p.status === 'pending_approval' || p.approvalStatus === 'pending'))
+              );
+
+              if (myNewlyApproved.length > 0) {
+                const approvedTask = myNewlyApproved[myNewlyApproved.length - 1];
+                sound.playSuccess();
+                showToast(
+                  '✅ Task Approved & Activated',
+                  `Lead Admin approved "${approvedTask.title}". Now active on the board!`,
+                  'success'
+                );
+              }
+            }
+            prevPendingTasksRef.current = fetchedTasks.filter(t => t.status === 'pending_approval' || t.approvalStatus === 'pending');
+          }
+        }
+      }
+
+      // 2. Fetch client projects
+      const clientsRes = await apiClient.get('/clients').catch(() => ({ data: { projects: [] } }));
+      if (clientsRes.data && clientsRes.data.projects) {
+        const fetchedProjects = clientsRes.data.projects;
+        setClientProjects(fetchedProjects);
+
+        // Admin: Check for new client credential verification requests
+        if (user && user.role === 'superadmin') {
+          const currentPendingCreds = fetchedProjects.flatMap(p => 
+            (p.credentials || []).map(c => ({ ...c, projectName: p.name }))
+          ).filter(c => c.status === 'pending_approval');
+
+          if (prevPendingCredsRef.current.length > 0) {
+            const newCreds = currentPendingCreds.filter(c => 
+              !prevPendingCredsRef.current.some(p => p.id === c.id) &&
+              c.submittedBy !== user.name
+            );
+
+            if (newCreds.length > 0) {
+              const latestCred = newCreds[newCreds.length - 1];
+              sound.playNotification();
+              showToast(
+                '🔐 Credential Approval Request',
+                `New credential submitted in "${latestCred.projectName}" awaiting verification.`,
+                'info'
+              );
+            }
+          }
+          prevPendingCredsRef.current = currentPendingCreds;
+        }
+      }
+
+      // 3. Fetch current meeting & full queue
+      const meetingRes = await apiClient.get('/meetings/current').catch(() => ({ data: { meeting: null, meetings: [] } }));
+      if (meetingRes.data) {
+        setMeeting(meetingRes.data.meeting);
+        if (Array.isArray(meetingRes.data.meetings)) {
+          setMeetings(meetingRes.data.meetings);
+        }
+      }
+
+      // 4. Fetch chat messages
+      const chatRes = await apiClient.get('/chat/messages').catch(() => ({ data: { messages: [] } }));
+      if (chatRes.data && chatRes.data.messages) {
+        const fetchedMsgs = chatRes.data.messages;
+
+        // Check for fresh incoming messages from other founders/admin across ANY page
+        if (prevMessagesRef.current && prevMessagesRef.current.length > 0) {
+          const freshIncoming = fetchedMsgs.filter(m => 
+            !prevMessagesRef.current.some(p => p.id === m.id) &&
+            m.senderId !== currentUserRef.current?.id
+          );
+
+          if (freshIncoming.length > 0) {
+            freshIncoming.forEach(latestMsg => {
+              sound.playNotification();
+              const content = latestMsg.voiceNoteUrl
+                ? '🎙️ Sent a voice note memo'
+                : latestMsg.mediaUrl
+                  ? '📎 Sent an attachment'
+                  : latestMsg.text;
+              showToast(
+                `💬 ${latestMsg.senderName || 'Team Message'}`,
+                content || 'New message in workspace chat',
+                'info'
+              );
+            });
+          }
+        }
+
+        prevMessagesRef.current = fetchedMsgs;
+        setMessages(fetchedMsgs);
+      }
+
+      // Fetch rules book
+      const rulesRes = await apiClient.get('/admin/rules').catch(() => ({ data: {} }));
+      if (rulesRes.data) {
+        if (rulesRes.data.rules) setRules(rulesRes.data.rules);
+        if (rulesRes.data.adminRatification) setAdminRatification(rulesRes.data.adminRatification);
+        if (rulesRes.data.foundersSignatures) setFoundersSignatures(rulesRes.data.foundersSignatures);
+      }
+
+      // Fetch founders list if admin or user
+      const foundersRes = await apiClient.get('/admin/founders').catch(() => ({ data: { founders: [] } }));
+      if (foundersRes.data && foundersRes.data.founders) {
+        setFounders(foundersRes.data.founders);
+        if (user) {
+          const freshSelf = foundersRes.data.founders.find(f => f.id === user.id);
+          if (freshSelf && freshSelf.avatar && freshSelf.avatar !== user.avatar) {
+            const merged = { ...user, ...freshSelf };
+            setCurrentUser(merged);
+            localStorage.setItem('founders_user', JSON.stringify(merged));
+          }
+        }
+      }
+
+      // Fetch persistent notifications
+      const notifsRes = await apiClient.get('/notifications').catch(() => ({ data: { notifications: [] } }));
+      if (notifsRes.data && notifsRes.data.notifications) {
+        const fetchedNotifs = notifsRes.data.notifications;
+
+        // If this is the initial load, seed the toasted set with existing notification IDs so they do not toast on reload
+        if (prevNotificationsRef.current === null) {
+          fetchedNotifs.forEach(n => toastedNotifIdsRef.current.add(n.id));
+        } else if (prevNotificationsRef.current && prevNotificationsRef.current.length > 0) {
+          const freshNotifs = fetchedNotifs.filter(n => 
+            !prevNotificationsRef.current.some(p => p.id === n.id) && !n.read
+          );
+
+          freshNotifs.forEach(notif => {
+            toastNotificationOnce(notif);
+          });
+        }
+
+        prevNotificationsRef.current = fetchedNotifs;
+        setNotifications(fetchedNotifs);
+      }
+
+      // Fetch live activity stream & audit logs for all founders
+      const activityRes = await apiClient.get('/activity').catch(() => ({ data: { activity: [] } }));
+      if (activityRes.data && activityRes.data.activity) {
+        setAuditLogs(activityRes.data.activity);
+      }
+    } catch (err) {
+      console.error('Error refreshing portal data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchPortalSettings = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/admin/settings');
+      if (res.data && res.data.settings) {
+        setPortalSettings(res.data.settings);
+        if (res.data.settings.comingSoonActive === false) {
+          setIsBypassed(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load portal settings:', e);
+    }
+  }, []);
+
+  // Check current user session on boot
+  useEffect(() => {
+    const initAuth = async () => {
+      fetchPortalSettings();
+      const storedToken = localStorage.getItem('founders_token');
+      if (storedToken) {
+        try {
+          const res = await apiClient.get('/auth/me');
+          if (res.data.success && res.data.user) {
+            let finalUser = res.data.user;
+            try {
+              const savedUser = JSON.parse(localStorage.getItem('founders_user') || '{}');
+              if (savedUser.avatar && savedUser.avatar !== res.data.user.avatar && (savedUser.avatar.includes('cloudinary') || savedUser.avatar.startsWith('data:'))) {
+                finalUser = { ...res.data.user, avatar: savedUser.avatar };
+                apiClient.put('/auth/profile', { avatar: savedUser.avatar }).catch(() => {});
+              }
+            } catch (err) {}
+            setCurrentUser(finalUser);
+            localStorage.setItem('founders_user', JSON.stringify(finalUser));
+            setIsSuspended(finalUser.status === 'suspended');
+            setMustOnboard(finalUser.mustChangePassword);
+          }
+        } catch (e) {
+          // Token invalid or suspended
+          if (e.response && e.response.status === 403 && e.response.data.isSuspended) {
+            setIsSuspended(true);
+          }
+        }
+      }
+      refreshData();
+    };
+    initAuth();
+  }, [refreshData, fetchPortalSettings]);
+
+  // Periodic polling for realtime updates (fast 3.5s for instant chat & task sync)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (token) {
+        refreshData();
+      }
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [token, refreshData]);
+
+  // Real-time WebSocket Connection via Socket.io
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
+    const socket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('⚡ Real-time Socket.io connected:', socket.id);
+    });
+
+    socket.on('new_message', (newMsg) => {
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+
+      if (newMsg.senderId !== currentUserRef.current?.id) {
+        sound.playNotification();
+        showToast(
+          `💬 ${newMsg.senderName || 'Team Message'}`,
+          newMsg.text || (newMsg.mediaUrl ? '📎 Sent media attachment' : 'Sent a chat message'),
+          'info'
+        );
+      }
+    });
+
+    const handleIncomingNotification = (notif) => {
+      if (!notif) return;
+      const user = currentUserRef.current;
+      
+      // Determine if notification is relevant to current user
+      const isTargetUser = notif.targetUserId ? (notif.targetUserId === user?.id) : true;
+      const isTargetRole = notif.targetRole ? (notif.targetRole === 'all' || notif.targetRole === user?.role) : true;
+      
+      if (!isTargetUser || !isTargetRole) return;
+
+      // Add to notifications list without duplicate
+      setNotifications(prev => {
+        if (prev.some(n => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+
+      // Deduplicated single toast dispatch
+      toastNotificationOnce(notif);
+    };
+
+    socket.on('new_notification', handleIncomingNotification);
+
+    socket.on('new_activity', (newLog) => {
+      if (!newLog) return;
+      setAuditLogs(prev => {
+        const existing = prev || [];
+        if (existing.some(l => l.id === newLog.id)) return existing;
+        return [newLog, ...existing];
+      });
+    });
+
+    socket.on('task_updated', (data) => {
+      refreshData();
+    });
+
+    socket.on('notification_read', ({ id, all }) => {
+      setNotifications(prev => prev.map(n => (all || n.id === id ? { ...n, read: true } : n)));
+    });
+
+    socket.on('notifications_cleared', () => {
+      setNotifications([]);
+    });
+
+    socket.on('settings_updated', (newSettings) => {
+      setPortalSettings(newSettings);
+      if (newSettings.comingSoonActive === false) {
+        setIsBypassed(true);
+      }
+    });
+
+    socket.on('USER_UPDATED', (updatedUser) => {
+      setFounders(prev => prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f));
+      if (currentUserRef.current?.id === updatedUser.id) {
+        setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+      }
+      refreshData();
+    });
+
+    socket.on('meeting_updated', (updatedMeeting) => {
+      setMeeting(updatedMeeting);
+    });
+
+    socket.on('MEETING_UPDATED', (updatedMeeting) => {
+      setMeeting(updatedMeeting);
+    });
+
+    socket.on('meetings_updated', (updatedMeetings) => {
+      if (Array.isArray(updatedMeetings)) {
+        setMeetings(updatedMeetings);
+      }
+    });
+
+    socket.on('projects_updated', (updatedProjects) => {
+      if (Array.isArray(updatedProjects)) {
+        setClientProjects(updatedProjects);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [refreshData, toastNotificationOnce]);
+
+  // Total Unread Messages Count for current user across all conversations
+  const unreadMessagesCount = messages.filter(m => 
+    m.senderId !== currentUser?.id && 
+    m.status !== 'read'
+  ).length;
+
+  // Unread Notifications count (strict: count > 0)
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  // Pending Requests count for badge (strict: count > 0)
+  const pendingRequestsCount = currentUser?.role === 'superadmin'
+    ? (
+        tasks.filter(t => t.status === 'pending_approval' || t.approvalStatus === 'pending').length +
+        tasks.filter(t => t.status === 'review_pending').length +
+        clientProjects.flatMap(p => p.credentials || []).filter(c => c.status === 'pending_approval').length +
+        clientProjects.filter(p => p.status === 'pending_approval' || p.approvalStatus === 'pending').length
+      )
+    : (
+        tasks.filter(t => 
+          (t.requesterId === currentUser?.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(currentUser?.id))) && 
+          (t.status === 'pending_approval' || t.approvalStatus === 'pending')
+        ).length +
+        clientProjects.filter(p => p.requestedBy === currentUser?.id && (p.status === 'pending_approval' || p.approvalStatus === 'pending')).length
+      );
+
+  const markChatAsRead = async (channel = 'group', recipientId = null) => {
+    try {
+      await apiClient.post('/chat/mark-read', { channel, recipientId });
+      setMessages(prev => prev.map(m => {
+        if (recipientId) {
+          if (m.senderId === recipientId && m.recipientId === currentUser?.id) {
+            return { ...m, status: 'read' };
+          }
+        } else {
+          if (!m.recipientId && m.senderId !== currentUser?.id) {
+            return { ...m, status: 'read' };
+          }
+        }
+        return m;
+      }));
+    } catch (err) {
+      console.error('Failed to mark messages as read:', err);
+    }
+  };
+
+  const markNotificationAsRead = async (id = null) => {
+    try {
+      await apiClient.post('/notifications/read', { id, all: !id });
+      setNotifications(prev => prev.map(n => (!id || n.id === id ? { ...n, read: true } : n)));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const clearNotifications = async () => {
+    try {
+      await apiClient.post('/notifications/clear');
+      setNotifications([]);
+    } catch (err) {
+      console.error('Failed to clear notifications:', err);
+    }
+  };
+
+  const updatePortalSettings = async (newSettings) => {
+    try {
+      const res = await apiClient.post('/admin/settings', newSettings);
+      if (res.data && res.data.success) {
+        setPortalSettings(res.data.settings);
+        showToast('Settings Saved', 'Portal Gateway access controls updated.', 'success');
+        return { success: true, settings: res.data.settings };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to update settings', 'error');
+      return { success: false };
+    }
+  };
+
+  // Automatically mark messages as read when user is actively viewing chat
+  useEffect(() => {
+    if (currentTab === 'chat' && unreadMessagesCount > 0) {
+      markChatAsRead();
+    }
+  }, [currentTab, unreadMessagesCount]);
+
+
+  // Auth Functions
+  const login = async (email, password) => {
+    try {
+      const res = await apiClient.post('/auth/login', { email, password });
+      if (res.data.success) {
+        const { token, user } = res.data;
+        setToken(token);
+        setCurrentUser(user);
+        setIsSuspended(user.status === 'suspended');
+        setMustOnboard(user.mustChangePassword);
+        localStorage.setItem('founders_token', token);
+        localStorage.setItem('founders_user', JSON.stringify(user));
+        localStorage.setItem('founders_bypassed', 'true');
+        setIsBypassed(true);
+        showToast('Login Successful', `Welcome back, ${user.name}!`, 'success');
+        refreshData();
+        return { success: true, user };
+      }
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.isSuspended) {
+        setIsSuspended(true);
+        setCurrentUser(err.response.data.user);
+        return { success: false, isSuspended: true, message: err.response.data.message };
+      }
+      const msg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      showToast('Login Error', msg, 'error');
+      return { success: false, message: msg };
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('founders_token');
+    localStorage.removeItem('founders_user');
+    setToken(null);
+    setCurrentUser(null);
+    setIsSuspended(false);
+    setMustOnboard(false);
+    showToast('Logged Out', 'You have been safely signed out.', 'info');
+  };
+
+  const completeOnboarding = async (data) => {
+    try {
+      const res = await apiClient.post('/auth/onboard', data);
+      if (res.data.success) {
+        setToken(res.data.token);
+        setCurrentUser(res.data.user);
+        setMustOnboard(false);
+        localStorage.setItem('founders_token', res.data.token);
+        localStorage.setItem('founders_user', JSON.stringify(res.data.user));
+        showToast('Onboarding Completed', 'Welcome to the Founders Workspace!', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Onboarding Error', err.response?.data?.message || 'Failed to complete onboarding.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
+  const verifyBypass = async (passcode) => {
+    try {
+      const res = await apiClient.post('/auth/verify-bypass', { key: passcode });
+      if (res.data.success) {
+        setIsBypassed(true);
+        localStorage.setItem('founders_bypassed', 'true');
+        showToast('Access Unlocked', 'Coming soon gateway bypassed.', 'success');
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Access Denied', 'Invalid access passcode.', 'error');
+      return { success: false };
+    }
+  };
+
+  // Task Actions
+  const createTask = async (taskData) => {
+    try {
+      const res = await apiClient.post('/tasks', taskData);
+      if (res.data.success) {
+        if (res.data.isPendingApproval) {
+          showToast('⏳ Task Request Submitted', 'Sent to Lead Admin for creation approval before activation.', 'info');
+        } else {
+          showToast('✅ Task Created', 'Task is now live on the Kanban board.', 'success');
+        }
+        refreshData();
+        return { success: true, isPendingApproval: res.data.isPendingApproval };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to create task.', 'error');
+      return { success: false };
+    }
+  };
+
+  const approveTaskCreation = async (taskId) => {
+    // 1. Optimistically update local tasks state immediately (no reload required)
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, approvalStatus: 'approved', status: 'todo' } : t));
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/approve-creation`);
+      if (res.data.success) {
+        showToast('✅ Task Approved', res.data.message || 'Task approved & activated on Kanban board.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      refreshData();
+      showToast('Error', err.response?.data?.message || 'Failed to approve task.', 'error');
+      return { success: false };
+    }
+  };
+
+  const rejectTaskCreation = async (taskId, reason) => {
+    // 1. Optimistically remove from local tasks state immediately (no reload required)
+    const taskToReject = tasks.find(t => t.id === taskId);
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    
+    // Add local notification instantly
+    if (taskToReject) {
+      setNotifications(prev => [
+        {
+          id: `notif_${Date.now()}`,
+          title: `Task Rejected: ${taskToReject.title}`,
+          message: `Reason: ${reason || 'Not aligned with current sprint priorities.'}`,
+          desc: `Reason: ${reason || 'Not aligned with current sprint priorities.'}`,
+          type: 'warning',
+          time: 'Just now',
+          read: false
+        },
+        ...prev
+      ]);
+    }
+
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/reject-creation`, { reason });
+      if (res.data.success) {
+        showToast('Task Request Rejected', res.data.message || 'Task request rejected and recorded.', 'warning');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      refreshData();
+      showToast('Error', err.response?.data?.message || 'Failed to reject task.', 'error');
+      return { success: false };
+    }
+  };
+
+  const postDailyUpdate = async (taskId, updateData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/daily-update`, updateData);
+      if (res.data.success) {
+        showToast('Daily Update Logged', 'Work progress added to timeline instantly.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to log update.', 'error');
+      return { success: false };
+    }
+  };
+
+  const requestProgress = async (taskId, progressData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/request-progress`, progressData);
+      if (res.data.success) {
+        showToast('Proof Submitted', 'Progress increase request forwarded to Lead Admin.', 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to submit progress.', 'error');
+      return { success: false };
+    }
+  };
+
+  const reviewProgress = async (taskId, reviewData) => {
+    // Optimistically update progress request in tasks state immediately (no reload required)
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      return {
+        ...t,
+        status: reviewData.decision === 'approve' ? (reviewData.verifiedPercent >= 100 ? 'done' : 'in_progress') : t.status,
+        progress: reviewData.decision === 'approve' ? (reviewData.verifiedPercent || t.progress) : t.progress,
+        progressRequests: (t.progressRequests || []).map(r => r.id === reviewData.requestId ? { ...r, status: reviewData.decision === 'approve' ? 'approved' : 'rejected' } : r)
+      };
+    }));
+
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/review-progress`, reviewData);
+      if (res.data.success) {
+        showToast('Review Executed', res.data.message, reviewData.decision === 'approve' ? 'success' : 'warning');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      refreshData();
+      showToast('Error', err.response?.data?.message || 'Failed to review progress.', 'error');
+      return { success: false };
+    }
+  };
+
+  const requestTransfer = async (taskId, transferData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/transfer-request`, transferData);
+      if (res.data.success) {
+        showToast('Transfer Requested', 'Handover brief sent to recipient founder.', 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Transfer Error', err.response?.data?.message || 'Failed to request transfer.', 'error');
+      return { success: false };
+    }
+  };
+
+  const respondTransfer = async (taskId, responseData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/transfer-respond`, responseData);
+      if (res.data.success) {
+        showToast('Transfer Updated', res.data.message, responseData.decision === 'accept' ? 'success' : 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to respond to transfer.', 'error');
+      return { success: false };
+    }
+  };
+
+  const requestExtension = async (taskId, extensionData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/request-extension`, extensionData);
+      if (res.data.success) {
+        showToast('Extension Requested', 'Deadline extension sent to Admin review.', 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to request extension.', 'error');
+      return { success: false };
+    }
+  };
+
+  const reviewExtension = async (taskId, decisionData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/review-extension`, decisionData);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Extension Decided', res.data.message, decisionData.status === 'approved' ? 'success' : 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to review extension.', 'error');
+      return { success: false };
+    }
+  };
+
+  const toggleBlocker = async (taskId, blockerData) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/toggle-blocker`, blockerData);
+      if (res.data.success) {
+        showToast(blockerData.isBlocked ? 'Blocker Reported' : 'Blocker Cleared', res.data.message, blockerData.isBlocked ? 'warning' : 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to toggle blocker.', 'error');
+      return { success: false };
+    }
+  };
+
+  // Client Hub Actions
+  const createClientProject = async (projectData) => {
+    try {
+      const res = await apiClient.post('/clients', projectData);
+      if (res.data.success) {
+        showToast('Client Project Created', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to create project.', 'error');
+      return { success: false };
+    }
+  };
+
+  const addCredential = async (projectId, credData) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/credentials`, credData);
+      if (res.data.success) {
+        showToast('Credential Staged', res.data.message, 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to add credential.', 'error');
+      return { success: false };
+    }
+  };
+
+  const approveCredential = async (projectId, credId) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/credentials/${credId}/approve`);
+      if (res.data.success) {
+        showToast('Credential Unlocked', 'Verified and accessible to assigned founders.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to approve credential.', 'error');
+      return { success: false };
+    }
+  };
+
+  const revealCredential = async (projectId, credId) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/credentials/${credId}/reveal`);
+      if (res.data.success) {
+        return { success: true, password: res.data.password, username: res.data.username };
+      }
+    } catch (err) {
+      showToast('Access Denied', err.response?.data?.message || 'Unable to reveal credential.', 'error');
+      return { success: false };
+    }
+  };
+
+  const approveClientProject = async (projectId) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/approve`);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Project Approved', res.data.message || 'Workspace is now active.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to approve project.', 'error');
+      return { success: false };
+    }
+  };
+
+  const rejectClientProject = async (projectId, reason) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/reject`, { reason });
+      if (res.data.success) {
+        showToast('Project Declined', res.data.message || 'Project proposal declined.', 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to reject project.', 'error');
+      return { success: false };
+    }
+  };
+
+  // Meeting Actions
+  const scheduleMeeting = async (meetingData) => {
+    try {
+      const res = await apiClient.post('/meetings/schedule', meetingData);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Meeting Scheduled', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Scheduling Failed', err.response?.data?.message || 'Failed to schedule meeting.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
+  const hostSubmitMeeting = async (submitData) => {
+    try {
+      const res = await apiClient.post('/meetings/host-submit', submitData);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Meeting Finalized', 'Date and link broadcasted to top banner.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to finalize meeting.', 'error');
+      return { success: false };
+    }
+  };
+
+  const confirmMeetingRsvp = async (meetingId = null) => {
+    try {
+      const res = await apiClient.post('/meetings/rsvp', { meetingId });
+      if (res.data.success) {
+        sound.playChime();
+        showToast('RSVP Confirmed', 'Your attendance is verified.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to confirm attendance.', 'error');
+      return { success: false };
+    }
+  };
+
+  const cancelMeeting = async (meetingId = null) => {
+    try {
+      const res = await apiClient.post('/meetings/cancel', { meetingId });
+      if (res.data.success) {
+        sound.playPop();
+        showToast('Meeting Cancelled', res.data.message || 'Meeting cancelled successfully.', 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      sound.playWarning();
+      showToast('Cancellation Blocked', err.response?.data?.message || 'Failed to cancel meeting.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
+  // Chat Actions
+  const sendMessage = async (messageData) => {
+    try {
+      const res = await apiClient.post('/chat/messages', messageData);
+      if (res.data.success) {
+        sound.playPop();
+        setMessages(prev => [...prev, res.data.message]);
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Chat Error', 'Failed to send message.', 'error');
+      return { success: false };
+    }
+  };
+
+  // Rules Book Actions
+  const signRulesBook = async (signatureData, hash) => {
+    try {
+      const res = await apiClient.post('/admin/rules/sign', { signatureData, hash });
+      if (res.data.success) {
+        showToast('Charter Signed', 'Digital signature recorded and verified.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to sign rules.', 'error');
+      return { success: false };
+    }
+  };
+
+  const ratifyCharter = async (sealType, signatureText) => {
+    try {
+      const res = await apiClient.post('/admin/rules/ratify', { sealType, signatureText });
+      if (res.data.success) {
+        showToast('Charter Ratified', 'SSA TEAM official seal and witness stamp applied.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to ratify charter.', 'error');
+      return { success: false };
+    }
+  };
+
+  // Admin Actions
+  const createFounder = async (founderData) => {
+    try {
+      const res = await apiClient.post('/admin/founders', founderData);
+      if (res.data.success) {
+        showToast('Founder Added', res.data.message, 'success');
+        refreshData();
+        return { success: true, tempPassword: res.data.tempPassword };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to add founder.', 'error');
+      return { success: false };
+    }
+  };
+
+  const deleteFounder = async (founderId) => {
+    try {
+      const res = await apiClient.delete(`/admin/founders/${founderId}`);
+      if (res.data.success) {
+        showToast('Founder Removed', res.data.message, 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to remove founder.', 'error');
+      return { success: false };
+    }
+  };
+
+  const issueStrike = async (founderId, strikeData) => {
+    try {
+      const res = await apiClient.post(`/admin/founders/${founderId}/strike`, strikeData);
+      if (res.data.success) {
+        sound.playDangerAlarm();
+        showToast('🚨 Critical Strike Issued', res.data.message, 'error');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to issue strike.', 'error');
+      return { success: false };
+    }
+  };
+
+  const addPipelineStage = async (projectId, stageData) => {
+    try {
+      const res = await apiClient.post(`/clients/${projectId}/pipeline-stage`, stageData);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Pipeline Stage Added', `Stage "${stageData.stageName}" created successfully.`, 'success');
+        refreshData();
+        return { success: true, stage: res.data.stage };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to add pipeline stage.', 'error');
+      return { success: false };
+    }
+  };
+
+  const pardonStrike = async (founderId, pardonNote) => {
+    try {
+      const res = await apiClient.post(`/admin/founders/${founderId}/pardon`, { pardonNote });
+      if (res.data.success) {
+        showToast('Strike Pardoned', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to pardon strike.', 'error');
+      return { success: false };
+    }
+  };
+
+  const adminOverridePassword = async (targetUserId, newPassword) => {
+    try {
+      const res = await apiClient.post('/auth/admin-override-password', { targetUserId, newPassword });
+      if (res.data.success) {
+        showToast('Password Updated', res.data.message, 'success');
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to override password.', 'error');
+      return { success: false };
+    }
+  };
+
+  const toggleMuteSound = () => {
+    const muted = sound.toggleMute();
+    setIsMuted(muted);
+    return muted;
+  };
+
+  // Media Upload (Cloudinary with local fallback)
+  const uploadFile = async (file, folder = 'founders_workspace', resourceType = 'auto') => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+      formData.append('resourceType', resourceType);
+
+      const res = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        return { success: true, url: res.data.url, publicId: res.data.publicId, provider: res.data.provider };
+      }
+      return { success: false, message: res.data.message };
+    } catch (err) {
+      console.error('File upload error:', err);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ success: true, url: e.target.result, provider: 'local_preview' });
+        reader.onerror = () => resolve({ success: false, message: 'File read failed' });
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  // Profile Update (Avatar, Phone, Designation, Name, Bio, Brand, Password)
+  const updateProfile = async (profileData) => {
+    try {
+      const res = await apiClient.put('/auth/profile', profileData);
+      if (res.data.success) {
+        sound.playChime();
+        const updatedUser = { ...currentUserRef.current, ...res.data.user };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('founders_user', JSON.stringify(updatedUser));
+        setFounders(prev => prev.map(f => f.id === res.data.user.id ? { ...f, ...res.data.user } : f));
+        if (res.data.meeting) {
+          setMeeting(res.data.meeting);
+        } else {
+          setMeeting(prev => {
+            if (!prev) return prev;
+            if (prev.hostId === res.data.user.id || (prev.hostName && prev.hostName.toLowerCase() === res.data.user.name?.toLowerCase())) {
+              return { ...prev, hostAvatar: res.data.user.avatar, hostName: res.data.user.name };
+            }
+            return prev;
+          });
+        }
+        showToast('Profile Updated', 'Your executive profile details and photo have been updated.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to update profile.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
+  return (
+    <PortalContext.Provider
+      value={{
+        currentUser,
+        token,
+        isAuthenticated: !!currentUser && !!token,
+        isSuspended,
+        mustOnboard,
+        isBypassed,
+        currentTab,
+        setCurrentTab,
+        isLoading,
+        isMuted,
+        toggleMuteSound,
+        tasks,
+        clientProjects,
+        meeting,
+        meetings,
+        messages,
+        rules,
+        adminRatification,
+        foundersSignatures,
+        founders,
+        auditLogs,
+        inactivityRadar,
+        securityFreeze,
+        notifications,
+        unreadNotificationsCount,
+        markNotificationAsRead,
+        clearNotifications,
+        portalSettings,
+        updatePortalSettings,
+        pendingRequestsCount,
+        toastMessage,
+        showToast,
+        refreshData,
+        unreadMessagesCount,
+        markChatAsRead,
+        // Actions
+        login,
+        logout,
+        completeOnboarding,
+        verifyBypass,
+        createTask,
+        approveTaskCreation,
+        rejectTaskCreation,
+        postDailyUpdate,
+        requestProgress,
+        reviewProgress,
+        requestTransfer,
+        respondTransfer,
+        requestExtension,
+        reviewExtension,
+        toggleBlocker,
+        createClientProject,
+        approveClientProject,
+        rejectClientProject,
+        addCredential,
+        approveCredential,
+        revealCredential,
+        scheduleMeeting,
+        hostSubmitMeeting,
+        confirmMeetingRsvp,
+        cancelMeeting,
+        sendMessage,
+        signRulesBook,
+        ratifyCharter,
+        createFounder,
+        deleteFounder,
+        issueStrike,
+        pardonStrike,
+        addPipelineStage,
+        adminOverridePassword,
+        uploadFile,
+        updateProfile
+      }}
+    >
+      {children}
+    </PortalContext.Provider>
+  );
+};
+
+export const usePortal = () => {
+  const context = useContext(PortalContext);
+  if (!context) {
+    throw new Error('usePortal must be used within a PortalProvider');
+  }
+  return context;
+};
