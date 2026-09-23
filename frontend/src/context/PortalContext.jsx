@@ -28,8 +28,11 @@ export const PortalProvider = ({ children }) => {
   const [currentTab, setCurrentTabState] = useState(() => {
     try {
       const hash = window.location.hash.replace('#', '');
-      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin'];
-      if (hash && validTabs.includes(hash)) return hash;
+      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin', 'profile'];
+      if (hash) {
+        if (validTabs.includes(hash)) return hash;
+        return '404';
+      }
       const saved = localStorage.getItem('founders_active_tab');
       if (saved && validTabs.includes(saved)) return saved;
     } catch (e) {}
@@ -47,10 +50,14 @@ export const PortalProvider = ({ children }) => {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin'];
-      if (hash && validTabs.includes(hash)) {
-        setCurrentTabState(hash);
-        localStorage.setItem('founders_active_tab', hash);
+      const validTabs = ['dashboard', 'tasks', 'projects', 'requests', 'rules', 'meetings', 'chat', 'admin', 'profile'];
+      if (hash) {
+        if (validTabs.includes(hash)) {
+          setCurrentTabState(hash);
+          localStorage.setItem('founders_active_tab', hash);
+        } else {
+          setCurrentTabState('404');
+        }
       }
     };
     window.addEventListener('hashchange', handleHashChange);

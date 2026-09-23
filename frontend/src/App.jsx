@@ -28,6 +28,7 @@ import { NotificationDrawer } from './components/notifications/NotificationDrawe
 import { StrikeAlertBanner } from './components/common/StrikeAlertBanner';
 import { SplashScreen } from './components/common/SplashScreen';
 import { WorkspaceTourModal } from './components/common/WorkspaceTourModal';
+import { NotFoundView } from './components/common/NotFoundView';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -159,6 +160,19 @@ const MainPortal = () => {
           {currentTab === 'rules' && <RulesBookView />}
 
           {currentTab === 'admin' && <AdminCommandView />}
+
+          {![
+            'profile',
+            'dashboard',
+            'tasks',
+            'projects',
+            'meetings',
+            'requests',
+            'rules',
+            'admin'
+          ].includes(currentTab) && (
+            <NotFoundView onGoHome={() => setCurrentTab('dashboard')} />
+          )}
         </main>
       </div>
 
