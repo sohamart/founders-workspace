@@ -97,6 +97,11 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
 
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800
+  }));
+
   const step = TOUR_STEPS[currentStepIndex];
 
   // Robust selector that finds the VISIBLE element (ignoring hidden mobile/desktop duplicates)
@@ -151,7 +156,10 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
     const t1 = setTimeout(measureTarget, 140);
     const t2 = setTimeout(measureTarget, 380);
 
-    const onResizeOrScroll = () => measureTarget();
+    const onResizeOrScroll = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+      measureTarget();
+    };
     window.addEventListener('resize', onResizeOrScroll, { passive: true });
     window.addEventListener('scroll', onResizeOrScroll, { passive: true, capture: true });
 
@@ -202,69 +210,63 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
   };
 
   const padding = 8;
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
-  const cardWidth = typeof window !== 'undefined' ? Math.min(380, window.innerWidth - 32) : 380;
-  const cardHeight = 150;
+  const isMobile = viewport.width < 768;
+  const cardWidth = isMobile ? Math.min(420, viewport.width - 24) : 380;
+  const cardHeight = 160;
 
-  // SMART VIEWPORT CLAMPING: Card NEVER hangs off screen boundaries!
+  // SMART BULLETPROOF VIEWPORT POSITIONING
   let popoverStyle = {};
-  if (!targetRect) {
+  if (isMobile) {
+    // Mobile / Tablet: Never overlaps target, never cuts off outside screen boundaries
+    const targetTop = targetRect ? targetRect.top : 0;
+    const placeAtTop = targetRect && targetTop > 200;
+
     popoverStyle = {
       position: 'fixed',
-      bottom: isMobile ? 84 : 28,
+      ...(placeAtTop 
+        ? { top: 16 } 
+        : { bottom: 84 } // Above mobile bottom dock
+      ),
       left: '50%',
       transform: 'translateX(-50%)',
       width: cardWidth,
+      maxWidth: 'calc(100vw - 24px)',
+      boxSizing: 'border-box',
       zIndex: 99995
     };
   } else {
-    const spaceBelow = window.innerHeight - targetRect.bottom;
-    const spaceAbove = targetRect.top;
-
-    if (isMobile) {
-      if (spaceBelow > cardHeight + 40 && targetRect.bottom < window.innerHeight - 200) {
-        popoverStyle = {
-          position: 'fixed',
-          top: Math.min(window.innerHeight - cardHeight - 84, targetRect.bottom + 12),
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: cardWidth,
-          zIndex: 99995
-        };
-      } else {
-        popoverStyle = {
-          position: 'fixed',
-          bottom: 84, // Safely above MobileDock
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: cardWidth,
-          zIndex: 99995
-        };
-      }
+    // Desktop: Clamped smartly near focused target
+    if (!targetRect) {
+      popoverStyle = {
+        position: 'fixed',
+        bottom: 28,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 380,
+        zIndex: 99995
+      };
     } else {
-      // Desktop: Clamped top position so it never overflows bottom of screen
+      const spaceBelow = viewport.height - targetRect.bottom;
+      const spaceAbove = targetRect.top;
+
       let topPos;
-      if (targetRect.height > 320 || spaceBelow < cardHeight + 24) {
-        if (spaceAbove > cardHeight + 24) {
-          topPos = Math.max(16, targetRect.top - cardHeight - 12);
-        } else {
-          topPos = Math.max(16, window.innerHeight - cardHeight - 24);
-        }
-      } else {
+      if (spaceBelow > cardHeight + 20) {
         topPos = targetRect.bottom + 12;
+      } else if (spaceAbove > cardHeight + 20) {
+        topPos = targetRect.top - cardHeight - 12;
+      } else {
+        topPos = viewport.height - cardHeight - 24;
       }
+      topPos = Math.max(16, Math.min(viewport.height - cardHeight - 16, topPos));
 
-      // Hard clamp within viewport boundaries
-      topPos = Math.max(16, Math.min(window.innerHeight - cardHeight - 20, topPos));
-
-      let leftPos = targetRect.left + targetRect.width / 2 - cardWidth / 2;
-      leftPos = Math.max(16, Math.min(window.innerWidth - cardWidth - 16, leftPos));
+      let leftPos = targetRect.left + targetRect.width / 2 - 190;
+      leftPos = Math.max(16, Math.min(viewport.width - 380 - 16, leftPos));
 
       popoverStyle = {
         position: 'fixed',
         top: topPos,
         left: leftPos,
-        width: cardWidth,
+        width: 380,
         zIndex: 99995
       };
     }
@@ -331,17 +333,17 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
       <div 
         style={popoverStyle}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-orange-200/90 text-slate-800 animate-fade-in flex flex-col justify-between transition-all duration-300 ease-out pointer-events-auto"
+        className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-orange-200/90 text-slate-800 animate-fade-in flex flex-col justify-between transition-all duration-300 ease-out pointer-events-auto box-border max-h-[45vh] overflow-hidden"
       >
         {/* Header: Step Badge + Title + Close */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[10px] font-bold font-mono tracking-wider shadow-xs">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[10px] font-bold font-mono tracking-wider shadow-xs shrink-0">
               {currentStepIndex + 1}/{TOUR_STEPS.length}
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <StepIcon className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate max-w-[210px] sm:max-w-[240px]">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
                 {step.title}
               </h3>
             </div>
@@ -349,10 +351,10 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
 
           <button
             onClick={handleComplete}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
             title="Exit Tour"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -362,9 +364,9 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
         </p>
 
         {/* Compact Footer Controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
           {/* Dot progress */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {TOUR_STEPS.map((s, idx) => (
               <button
                 key={s.id}
@@ -384,11 +386,11 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-0.5 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <ArrowLeft className="w-3 h-3" />
                 <span>Back</span>
@@ -397,7 +399,7 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
 
             <button
               onClick={handleNext}
-              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[11px] shadow-sm shadow-orange-600/20 hover:shadow-md transition-all flex items-center gap-1 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[11px] shadow-sm shadow-orange-600/25 hover:shadow-md transition-all flex items-center gap-1 cursor-pointer"
             >
               <span>{isLast ? 'Done 🚀' : 'Next →'}</span>
               {isLast ? <Check className="w-3 h-3" /> : null}

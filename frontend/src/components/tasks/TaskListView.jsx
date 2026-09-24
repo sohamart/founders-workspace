@@ -121,7 +121,7 @@ export const TaskListView = ({ onSelectTask, onOpenCreateModal }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
             {pendingCreationTasks.map((task) => (
               <div 
                 key={task.id}
@@ -286,7 +286,7 @@ export const TaskListView = ({ onSelectTask, onOpenCreateModal }) => {
       </div>
 
       {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
         {columns.map((col) => {
           const colTasks = filteredTasks.filter(t => t.status === col.id);
 
