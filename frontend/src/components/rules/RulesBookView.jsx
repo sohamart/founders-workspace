@@ -285,15 +285,16 @@ export const RulesBookView = () => {
 
       {/* Global Pending Signatures Notice */}
       {!isMySignaturePending && pendingFounders.length > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs no-print">
+        <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs no-print">
           <div className="flex items-center gap-2.5 text-slate-800">
             <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
             <span>
-              <strong>{pendingFounders.length} Founder{pendingFounders.length > 1 ? 's' : ''}</strong> pending constitutional signature: <strong className="text-amber-950">{pendingFounders.map(f => f.name).join(', ')}</strong>
+              <strong className="text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md font-bold mr-1.5">Account Active</strong>
+              <strong>{pendingFounders.length} Founder{pendingFounders.length > 1 ? 's' : ''}</strong> will sign charter upon first login: <strong className="text-amber-950">{pendingFounders.map(f => f.name).join(', ')}</strong>
             </span>
           </div>
           <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold shrink-0">
-            Pending Ratification
+            Awaiting First Login Signature
           </span>
         </div>
       )}

@@ -702,7 +702,14 @@ export const PortalProvider = ({ children }) => {
       if (updatedUser.deleted) {
         setFounders(prev => prev.filter(f => f.id !== updatedUser.id));
       } else {
-        setFounders(prev => prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f));
+        setFounders(prev => {
+          const exists = prev.some(f => f.id === updatedUser.id);
+          if (exists) {
+            return prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f);
+          } else {
+            return [...prev, updatedUser];
+          }
+        });
         if (currentUserRef.current?.id === updatedUser.id) {
           const merged = { ...currentUserRef.current, ...updatedUser };
           setCurrentUser(merged);
@@ -1371,8 +1378,16 @@ export const PortalProvider = ({ children }) => {
       const res = await apiClient.post('/admin/founders', founderData);
       if (res.data.success) {
         showToast('Founder Added', res.data.message, 'success');
+        if (res.data.founder) {
+          const created = res.data.founder;
+          setFounders(prev => {
+            const exists = prev.some(f => f.id === created.id);
+            if (exists) return prev.map(f => f.id === created.id ? { ...f, ...created } : f);
+            return [...prev, created];
+          });
+        }
         refreshData();
-        return { success: true, tempPassword: res.data.tempPassword };
+        return { success: true, tempPassword: res.data.tempPassword, founder: res.data.founder };
       }
     } catch (err) {
       showToast('Error', err.response?.data?.message || 'Failed to add founder.', 'error');

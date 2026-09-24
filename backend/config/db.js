@@ -35,6 +35,8 @@ const connectDB = async () => {
     });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     isMongoConnected = true;
+    const { syncFromMongo } = require('./localStore');
+    await syncFromMongo();
   } catch (error) {
     console.warn(`⚠️  MongoDB Connection failed (${error.message}). Falling back to local persistent store mode.`);
     isMongoConnected = false;

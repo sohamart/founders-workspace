@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const initialSeed = require('./initialSeed');
 
 const dataDir = path.join(__dirname, '../data');
@@ -8,6 +9,18 @@ const storeFilePath = path.join(dataDir, 'store.json');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+
+// Mongoose Schema for resilient Cloud Persistence across serverless/ephemeral deploys
+const StoreSchema = new mongoose.Schema({
+  key: { type: String, default: 'workspace_store', unique: true },
+  data: { type: Object, required: true },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const StoreModel = mongoose.models.StoreModel || mongoose.model('StoreModel', StoreSchema);
+
+// In-memory reference for ultra-low latency reads
+let inMemoryStore = null;
 
 // Initialize store file if not present
 if (!fs.existsSync(storeFilePath)) {
@@ -33,13 +46,48 @@ if (!fs.existsSync(storeFilePath)) {
   fs.writeFileSync(storeFilePath, JSON.stringify(initialData, null, 2), 'utf-8');
 }
 
+const syncFromMongo = async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await StoreModel.findOne({ key: 'workspace_store' });
+      if (doc && doc.data && Array.isArray(doc.data.users) && doc.data.users.length > 0) {
+        inMemoryStore = doc.data;
+        fs.writeFileSync(storeFilePath, JSON.stringify(doc.data, null, 2), 'utf-8');
+        console.log(`☁️  Synced ${doc.data.users.length} users & workspace data from MongoDB Atlas!`);
+        return true;
+      } else {
+        // Seed MongoDB from current store.json
+        const currentData = getStore();
+        if (currentData) {
+          await StoreModel.findOneAndUpdate(
+            { key: 'workspace_store' },
+            { data: currentData, updatedAt: new Date() },
+            { upsert: true, new: true }
+          );
+          console.log(`☁️  Initialized MongoDB Atlas with current store data (${currentData.users.length} users).`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('⚠️  Could not sync from MongoDB:', err.message);
+  }
+  return false;
+};
+
 const getStore = () => {
   try {
+    if (inMemoryStore) {
+      if (!Array.isArray(inMemoryStore.meetings)) {
+        inMemoryStore.meetings = inMemoryStore.meeting ? [inMemoryStore.meeting] : [];
+      }
+      return inMemoryStore;
+    }
     const raw = fs.readFileSync(storeFilePath, 'utf-8');
     const data = JSON.parse(raw);
     if (data && !Array.isArray(data.meetings)) {
       data.meetings = data.meeting ? [data.meeting] : [];
     }
+    inMemoryStore = data;
     return data;
   } catch (err) {
     console.error('Error reading local store:', err);
@@ -49,7 +97,17 @@ const getStore = () => {
 
 const saveStore = (data) => {
   try {
+    inMemoryStore = data;
     fs.writeFileSync(storeFilePath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // Asynchronously save to MongoDB Atlas so ephemeral hosting never loses data
+    if (mongoose.connection.readyState === 1) {
+      StoreModel.findOneAndUpdate(
+        { key: 'workspace_store' },
+        { data, updatedAt: new Date() },
+        { upsert: true, new: true }
+      ).catch(err => console.error('⚠️ MongoDB persist error:', err.message));
+    }
     return true;
   } catch (err) {
     console.error('Error saving local store:', err);
@@ -59,7 +117,7 @@ const saveStore = (data) => {
 
 const resetStoreToBlank = () => {
   const blankData = {
-    isProvisioned: false, // Triggers single admin 1-time setup wizard
+    isProvisioned: false,
     users: [],
     rules: initialSeed.initialRules,
     adminRatification: {
@@ -99,6 +157,7 @@ const resetStoreToBlank = () => {
 module.exports = {
   getStore,
   saveStore,
+  syncFromMongo,
   resetStoreToBlank,
   storeFilePath
 };
