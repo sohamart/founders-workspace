@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { SignatureCanvas } from './SignatureCanvas';
 import { AdminRatificationSeal } from './AdminRatificationSeal';
+import { ExecutiveSealArt } from './ExecutiveSealArt';
 import { sound } from '../../utils/soundFx';
 
 export const RulesBookView = () => {
@@ -106,14 +107,9 @@ export const RulesBookView = () => {
   // High-fidelity Print & PDF Export Trigger
   const handlePrint = () => {
     sound.playChime();
-    // Expand all rules so full content prints
-    const allExpanded = {};
-    rules.forEach(r => { allExpanded[r.number] = true; });
-    setExpandedRules(allExpanded);
-
     setTimeout(() => {
       window.print();
-    }, 300);
+    }, 200);
   };
 
   const handleSaveSignature = async (signatureData) => {
@@ -171,7 +167,10 @@ export const RulesBookView = () => {
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl mx-auto pb-28 md:pb-12 text-slate-800 rules-book-container">
       
-      {/* 1. Official Charter Cover Header */}
+      {/* On-Screen Interactive Interface (Hidden in Print) */}
+      <div className="screen-only-view space-y-6">
+        
+        {/* 1. Official Charter Cover Header */}
       <div data-tour="rules-charter" className="p-6 md:p-9 rounded-3xl bg-white text-slate-800 border-2 border-amber-200/90 shadow-sm relative overflow-hidden space-y-6">
         
         {/* Top Badges & Action Buttons */}
@@ -630,27 +629,292 @@ export const RulesBookView = () => {
       {/* 5. LEAD ADMIN WITNESS, MANUAL SIGNATURE & RATIFICATION SEAL */}
       <AdminRatificationSeal onTriggerPrint={handlePrint} />
 
-      {/* Bottom Print / PDF Export Full Action Strip */}
-      <div className="p-5 rounded-3xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-slate-900/10 no-print">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
-            <Printer className="w-5 h-5" />
+        {/* Bottom Print / PDF Export Full Action Strip */}
+        <div className="p-5 rounded-3xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-slate-900/10 no-print">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+              <Printer className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">Export Official Charter Document (PDF)</h4>
+              <p className="text-[11px] text-slate-400">
+                Generates clean, print-ready pages with all 30 rules, official seals, and verified signatures.
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-white">Export Official Charter Document (PDF)</h4>
-            <p className="text-[11px] text-slate-400">
-              Generates clean, print-ready pages with all 30 rules, official seals, and verified signatures.
+
+          <button
+            onClick={handlePrint}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print / Save as PDF</span>
+          </button>
+        </div>
+
+      </div>
+      {/* End of screen-only-view */}
+
+      {/* ============================================================== */}
+      {/* DEDICATED PUBLICATION-GRADE MULTI-PAGE PRINT CHARTER DOCUMENT  */}
+      {/* Rendered ONLY during @media print (hidden on interactive screen)*/}
+      {/* ============================================================== */}
+      <div className="hidden print:block charter-print-document text-slate-900 bg-white">
+        
+        {/* Cover / Header Section */}
+        <div className="border-b-2 border-slate-900 pb-4 mb-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-black text-sm tracking-wider bg-slate-900 text-white px-2.5 py-1 rounded">
+                WEBLETS®
+              </span>
+              <span className="text-orange-600 font-black text-sm">×</span>
+              <span className="font-mono font-black text-sm tracking-wider bg-orange-600 text-white px-2.5 py-1 rounded">
+                STACKADDA™
+              </span>
+            </div>
+            <div className="text-right text-[9pt] font-mono text-slate-600 font-bold uppercase tracking-wider">
+              <div>OFFICIAL CONSTITUTIONAL CHARTER</div>
+              <div>VERSION 2.0 STRICT • LEGAL INSTRUMENT</div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-xl font-black tracking-tight text-slate-950 uppercase">
+              FOUNDERS' STRICT RULES & OPERATIONAL AGREEMENT
+            </h1>
+            <p className="text-[9pt] font-bold text-orange-700 font-mono tracking-wide">
+              DISCIPLINE • COMPLETE TRANSPARENCY • PUNCTUALITY • FLAWLESS EXECUTION • 2-STRIKE GOVERNANCE
             </p>
+          </div>
+
+          {/* Legal Preamble */}
+          <p className="text-[9.5pt] text-slate-700 leading-relaxed text-justify">
+            This document sets forth the comprehensive, binding corporate agreement, non-negotiable operational standards, disciplinary procedures, and mutual fiduciary responsibilities established among all Founding Partners of <strong>Weblets</strong> and <strong>StackAdda</strong>. Compliance with every provision set forth below is strictly mandatory, universal, and without personal exception.
+          </p>
+
+          {/* 4 Pillars Summary Box */}
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            <div className="p-2 rounded border border-slate-300 bg-slate-50 text-center">
+              <div className="text-[9pt] font-black text-slate-900 font-mono">1. PEOPLE</div>
+              <div className="text-[8pt] text-slate-600 mt-0.5 leading-snug">Strong founding unit with zero ego & mutual respect.</div>
+            </div>
+            <div className="p-2 rounded border border-slate-300 bg-slate-50 text-center">
+              <div className="text-[9pt] font-black text-slate-900 font-mono">2. PURPOSE</div>
+              <div className="text-[8pt] text-slate-600 mt-0.5 leading-snug">Raw ideas transformed into disciplined execution.</div>
+            </div>
+            <div className="p-2 rounded border border-slate-300 bg-slate-50 text-center">
+              <div className="text-[9pt] font-black text-slate-900 font-mono">3. PROGRESS</div>
+              <div className="text-[8pt] text-slate-600 mt-0.5 leading-snug">Consistent daily milestones with verified proof.</div>
+            </div>
+            <div className="p-2 rounded border border-slate-300 bg-slate-50 text-center">
+              <div className="text-[9pt] font-black text-slate-900 font-mono">4. IMPACT</div>
+              <div className="text-[8pt] text-slate-600 mt-0.5 leading-snug">Uncompromising delivery of high-tier client value.</div>
+            </div>
+          </div>
+
+          {/* Enforcement Baseline Warning */}
+          <div className="p-2 rounded border-l-4 border-l-amber-600 border border-amber-300 bg-amber-50/70 text-[8.5pt] text-amber-950">
+            <strong>CONSTITUTIONAL ENFORCEMENT & 2-STRIKE PROTOCOL</strong>: Strike 1 serves as a permanent formal warning. Strike 2 results in immediate automated system lockout, platform suspension, and emergency partner review.
           </div>
         </div>
 
-        <button
-          onClick={handlePrint}
-          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
+        {/* ALL 30 RULES PRINT CONTAINER */}
+        <div className="space-y-3 mb-6">
+          <div className="border-b border-slate-300 pb-1.5 mb-2.5">
+            <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider font-mono">
+              CONSTITUTIONAL CLAUSES — RULES 01 THROUGH 30
+            </h2>
+          </div>
+
+          {rules.map((rule) => (
+            <div
+              key={rule.number}
+              className="rule-print-card"
+              style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+            >
+              {/* Rule Card Header */}
+              <div className="flex items-baseline justify-between border-b border-slate-200 pb-1 mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-[10pt] text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">
+                    RULE {rule.number}
+                  </span>
+                  <span className="text-[10.5pt] font-extrabold text-slate-900">
+                    {rule.title}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[8pt] font-mono font-semibold uppercase text-slate-500">
+                    {rule.chapter || 'Operational Protocol'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tagline */}
+              {rule.tagline && (
+                <div className="text-[9pt] font-bold text-amber-800 italic mb-1.5">
+                  "{rule.tagline}"
+                </div>
+              )}
+
+              {/* Points */}
+              <ul className="list-disc pl-5 space-y-0.5 text-[8.5pt] text-slate-800 leading-normal mb-1.5">
+                {(rule.points || []).map((pt, idx) => (
+                  <li key={idx}>{pt}</li>
+                ))}
+              </ul>
+
+              {/* Disciplinary Warning / Strike Trigger */}
+              {rule.warning && (
+                <div className="p-1.5 rounded bg-amber-50 border border-amber-300 text-[8pt] text-amber-950 font-medium">
+                  <strong>⚠️ DISCIPLINARY TRIGGER & CONSEQUENCE:</strong> {rule.warning}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ========================================================= */}
+        {/* EXECUTION, RATIFICATION & PERMANENT SIGNATURES SECTION     */}
+        {/* ========================================================= */}
+        <div 
+          className="signatures-print-block border-t-2 border-slate-900 pt-5 mt-6 space-y-5"
+          style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
         >
-          <Printer className="w-4 h-4" />
-          <span>Print / Save as PDF</span>
-        </button>
+          <div>
+            <h2 className="text-sm font-black text-slate-950 uppercase tracking-tight font-mono">
+              CONSTITUTIONAL EXECUTION & COVENANT DECLARATION
+            </h2>
+            <p className="text-[9pt] text-slate-600 mt-1 leading-relaxed text-justify">
+              IN WITNESS WHEREOF, the undersigned Founding Partners have solemnly executed, signed, and ratified this Founders' Charter in its entirety. Each Founder affirms by their signature below that they have meticulously read, fully understood, and irrevocably consented to abide by all thirty (30) constitutional rules, acknowledging the universal application of the automated 2-Strike protocol.
+            </p>
+          </div>
+
+          {/* 3 Active Founder Execution Cards */}
+          <div>
+            <h3 className="text-xs font-bold font-mono uppercase text-slate-700 tracking-wider mb-2">
+              Founding Partners' Attestation:
+            </h3>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              {activeFounders.map((f) => {
+                const isSigned = f.signature && f.signature.signed;
+                return (
+                  <div key={f.id} className="p-2.5 rounded-lg border border-slate-300 bg-slate-50 space-y-1.5">
+                    <div className="border-b border-slate-200 pb-1">
+                      <div className="font-bold text-[9pt] text-slate-900 truncate">{f.name}</div>
+                      <div className="text-[7.5pt] text-slate-500 font-mono truncate">{f.designation || 'Founding Partner'}</div>
+                      <div className="text-[7pt] text-slate-400 font-mono truncate">{f.email}</div>
+                    </div>
+
+                    <div className="h-14 rounded bg-white border border-slate-200 flex items-center justify-center p-1 overflow-hidden">
+                      {isSigned && f.signature.signatureData ? (
+                        <img 
+                          src={f.signature.signatureData} 
+                          alt={`${f.name} Signature`} 
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-[7.5pt] text-slate-400 italic">
+                          {isSigned ? 'Digitally Executed' : 'Pending Signature'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[7pt] font-mono text-slate-500 space-y-0.5">
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <strong className={isSigned ? 'text-emerald-700 font-bold' : 'text-amber-700'}>
+                          {isSigned ? 'EXECUTED ✓' : 'PENDING'}
+                        </strong>
+                      </div>
+                      {isSigned && f.signature.date && (
+                        <div>Date: <strong className="text-slate-800">{f.signature.date}</strong></div>
+                      )}
+                      {isSigned && f.signature.hash && (
+                        <div className="truncate">Hash: <span className="text-orange-700">{f.signature.hash}</span></div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Lead Admin Permanent Witness & Ratification Seal Block */}
+          <div 
+            className="seal-print-block p-3.5 rounded-xl border-2 border-amber-400 bg-amber-50/40 space-y-2.5"
+            style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+          >
+            <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
+              <div>
+                <span className="text-[8pt] font-mono font-black uppercase tracking-wider text-amber-800">
+                  OFFICIAL WITNESS & LEGAL RATIFICATION
+                </span>
+                <h4 className="text-[10pt] font-bold text-slate-900 mt-0.5">
+                  Lead Admin Authority Permanent Seal
+                </h4>
+              </div>
+              <span className="text-[7.5pt] font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                ACTIVE & ENFORCED
+              </span>
+            </div>
+
+            <blockquote className="text-[8.5pt] italic font-serif text-slate-700 pl-3 border-l-2 border-amber-500">
+              "{adminRatification?.quote || "I, Lead Admin, hereby ratify, execute and officially enforce the Founders' Strict Rules & Agreement (Version 2.0) across Weblets and StackAdda."}"
+            </blockquote>
+
+            <div className="grid grid-cols-2 gap-3 items-center pt-1">
+              {/* Left: Lead Admin Signature */}
+              <div className="space-y-1">
+                <div className="text-[7.5pt] font-mono uppercase text-slate-500 font-bold">
+                  Lead Admin Authority:
+                </div>
+                <div className="text-[9.5pt] font-black text-slate-900">
+                  {adminRatification?.ratifiedBy || currentUser?.name || 'SSA TEAM LEAD ADMIN'}
+                </div>
+                <div className="text-[7.5pt] font-mono text-amber-800">
+                  Date: {adminRatification?.date || '24 Sep 2026'} • Protocol v2.0 Strict
+                </div>
+
+                <div className="h-14 rounded bg-white border border-slate-300 flex items-center justify-center p-1 overflow-hidden shadow-inner">
+                  {adminRatification?.signatureData ? (
+                    <img 
+                      src={adminRatification.signatureData} 
+                      alt="Lead Admin Signature" 
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="font-serif italic text-xs text-slate-600 font-bold">
+                      {adminRatification?.signatureText || 'SSA TEAM LEAD ADMIN'}
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-[7pt] font-mono text-slate-500 truncate">
+                  Hash: <strong className="text-orange-700">{adminRatification?.signatureHash || 'SHA:ADMIN_VERIFIED'}</strong>
+                </div>
+              </div>
+
+              {/* Right: Executive Seal Art */}
+              <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white border border-amber-200 text-center">
+                <ExecutiveSealArt type={adminRatification?.sealType || 'gold_crest'} size="md" />
+                <div className="mt-1 text-[7.5pt] font-bold text-slate-800 uppercase font-mono tracking-wider">
+                  Official Executive Seal
+                </div>
+                <div className="text-[6.5pt] text-amber-800">
+                  Permanent Ratification of Founders' Charter
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-1.5 border-t border-amber-200 text-[7.5pt] text-slate-600 font-mono text-center">
+              CERTIFIED IMMUTABLE RECORD • REGISTERED TO WEBLETS & STACKADDA REPOSITORY
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
       {/* 6. MANDATORY CONSTITUTIONAL SIGNATURE MODAL POPUP FOR FOUNDERS */}

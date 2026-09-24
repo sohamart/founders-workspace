@@ -375,10 +375,10 @@ exports.ratifyRulesBook = async (req, res) => {
 
   store.adminRatification = {
     quote: quote || prev.quote || "I, Lead Admin, hereby ratify, execute and officially enforce the Founders' Strict Rules & Agreement (Version 2.0) across Weblets and StackAdda.",
-    ratifiedBy: ratifiedBy || prev.ratifiedBy || req.user.name || "SSA TEAM LEAD ADMIN",
+    ratifiedBy: (ratifiedBy && ratifiedBy.trim()) ? ratifiedBy.trim() : (prev.ratifiedBy || req.user.name || "SSA TEAM LEAD ADMIN"),
     date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
     sealType: sealType || prev.sealType || 'gold_crest',
-    signatureText: signatureText || prev.signatureText || 'SSA TEAM LEAD ADMIN',
+    signatureText: (ratifiedBy && ratifiedBy.trim()) ? ratifiedBy.trim() : (signatureText || prev.signatureText || 'SSA TEAM LEAD ADMIN'),
     signatureData: signatureData !== undefined ? signatureData : (prev.signatureData || null),
     signatureHash: signatureHash || prev.signatureHash || `SHA:ADMIN_${Date.now().toString(16).toUpperCase()}`,
     verified: true,

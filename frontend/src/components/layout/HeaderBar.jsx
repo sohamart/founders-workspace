@@ -16,6 +16,7 @@ import {
   Compass,
   X
 } from 'lucide-react';
+import { PwaInstallButton } from '../common/PwaInstallButton';
 
 export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
   const { 
@@ -97,6 +98,9 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
         {/* Right Action Icons & Profile */}
         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
           
+          {/* PWA App Installer (Hidden on Mobile top bar for clean executive layout) */}
+          <PwaInstallButton className="hidden md:flex" />
+
           {/* Interactive Workspace Tour Button */}
           <button
             data-tour="header-tour"

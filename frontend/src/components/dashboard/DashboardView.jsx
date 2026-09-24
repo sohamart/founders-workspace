@@ -27,6 +27,7 @@ import {
 import { formatCountdown } from '../../utils/formatters';
 import { sound } from '../../utils/soundFx';
 import { SkeletonLoader } from '../common/SkeletonLoader';
+import { PwaInstallButton } from '../common/PwaInstallButton';
 
 export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
   const { 
@@ -86,6 +87,8 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
 
         {/* Quick Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5 z-10">
+          <PwaInstallButton />
+
           <button
             onClick={onOpenCreateTask}
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-semibold text-xs shadow-md shadow-orange-600/20 transition-all flex items-center gap-1.5"

@@ -321,9 +321,14 @@ exports.updateProfile = async (req, res) => {
   }
 
   if (avatar) user.avatar = avatar;
-  if (name) user.name = name;
-  if (phone) user.phone = phone;
-  if (designation) user.designation = designation;
+  if (name && name.trim()) {
+    user.name = name.trim();
+    if (user.role === 'superadmin' && store.adminRatification) {
+      store.adminRatification.ratifiedBy = user.name;
+    }
+  }
+  if (phone !== undefined) user.phone = phone.trim();
+  if (designation && designation.trim()) user.designation = designation.trim();
   if (bio !== undefined) user.bio = bio;
   if (brand) user.brand = brand;
 

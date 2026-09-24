@@ -81,24 +81,40 @@
 
 /* ========================================================
    OFFICIAL FOUNDERS CHARTER & RULESBOOK PRINT STYLES
-   Optimized for publication-grade A4 PDF export
+   Optimized for publication-grade multi-page A4 PDF export
    ======================================================== */
 @media print {
   @page {
-    margin: 12mm 10mm;
+    margin: 10mm 10mm 12mm 10mm;
     size: A4 portrait;
   }
 
-  html, body {
+  /* Unconstrain viewport and scroll containers for multi-page document flow */
+  html,
+  body,
+  #root,
+  #root > div,
+  .h-screen,
+  .h-full,
+  .overflow-hidden,
+  .overflow-y-auto,
+  main {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    float: none !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide app navigation, docks, banners, interactive controls */
+  /* Hide app navigation, desktop sidebar, mobile dock, meeting banner, alerts, modals */
   header,
   nav,
   aside,
@@ -108,38 +124,36 @@
   .sticky,
   button,
   input,
-  .Toastify {
+  .Toastify,
+  [data-tour],
+  .screen-only-view {
     display: none !important;
   }
 
-  /* Force display of full rule card contents when printing */
-  .rule-content-printable {
+  /* Dedicated publication-grade print charter document */
+  .charter-print-document {
     display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
   }
 
-  /* Page break rules for clean presentation */
+  /* Avoid page breaks inside individual rule cards, signatures, and seals */
+  .print-avoid-break,
+  .rule-print-card,
+  .signatures-print-block,
+  .seal-print-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+
   .print-page-break {
     page-break-before: always !important;
     break-before: page !important;
   }
-
-  .print-avoid-break {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .rule-print-card {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    border: 1px solid #cbd5e1 !important;
-    box-shadow: none !important;
-    background: #ffffff !important;
-    margin-bottom: 10px !important;
-  }
-
-  .signatures-print-block {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
 }
+
 

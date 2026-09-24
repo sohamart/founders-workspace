@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { 
   User, 
@@ -46,6 +46,18 @@ export const ProfileView = () => {
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [brand, setBrand] = useState(currentUser?.brand || 'Both Brands');
+
+  // Keep form inputs synced whenever currentUser is refreshed or updated
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.name !== undefined) setName(currentUser.name || '');
+      if (currentUser.avatar !== undefined) setAvatar(currentUser.avatar || '');
+      if (currentUser.designation !== undefined) setDesignation(currentUser.designation || '');
+      if (currentUser.phone !== undefined) setPhone(currentUser.phone || '');
+      if (currentUser.bio !== undefined) setBio(currentUser.bio || '');
+      if (currentUser.brand !== undefined) setBrand(currentUser.brand || 'Both Brands');
+    }
+  }, [currentUser]);
 
   // Password Change State
   const [currentPassword, setCurrentPassword] = useState('');

@@ -3,7 +3,7 @@
   "users": [
     {
       "id": "user_admin_01",
-      "name": "Soham Dutta",
+      "name": "SSA TEAM LEAD ADMIN",
       "email": "sohamduttabwn@gmail.com",
       "role": "superadmin",
       "designation": "Managing Partner & Lead Admin",
@@ -16,7 +16,7 @@
       "isOnboarded": true,
       "signature": {
         "signed": true,
-        "signatureData": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"60\"><text x=\"10\" y=\"35\" font-family=\"cursive\" font-size=\"24\" fill=\"%230f172a\">Soham Dutta</text></svg>",
+        "signatureData": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"60\"><text x=\"10\" y=\"35\" font-family=\"cursive\" font-size=\"24\" fill=\"%230f172a\">SSA Lead Admin</text></svg>",
         "date": "24/09/2026",
         "hash": "SHA:ADMIN_INIT_RATIFICATION"
       },
@@ -447,10 +447,15 @@
     }
   ],
   "adminRatification": {
-    "ratified": true,
-    "date": "24/09/2026",
-    "ratifiedBy": "Soham Dutta",
-    "hash": "SHA:ADMIN_INIT_RATIFICATION"
+    "quote": "I, Lead Admin, hereby ratify, execute and officially enforce the Founders' Strict Rules & Agreement (Version 2.0) across Weblets and StackAdda.",
+    "ratifiedBy": "SSA TEAM LEAD ADMIN",
+    "date": "Sep 24, 2026",
+    "sealType": "gold_crest",
+    "signatureText": "SSA TEAM LEAD ADMIN",
+    "signatureData": null,
+    "signatureHash": "SHA:ADMIN_1A0D233B09AFF71FF",
+    "verified": true,
+    "updatedAt": "2026-09-24T06:56:38.156Z"
   },
   "foundersSignatures": [],
   "clientProjects": [],
@@ -461,6 +466,20 @@
   "sharedExpenses": [],
   "notifications": [],
   "auditLogs": [
+    {
+      "id": "log_1790233629739",
+      "action": "USER_LOGIN",
+      "details": "SSA TEAM LEAD ADMIN (superadmin) logged in.",
+      "actor": "SSA TEAM LEAD ADMIN",
+      "timestamp": "2026-09-24T07:07:09.739Z"
+    },
+    {
+      "id": "log_1790232998156",
+      "action": "CHARTER_RATIFIED",
+      "details": "Lead Admin (Soham Dutta) updated legal ratification seal to [gold_crest] with manual signature.",
+      "actor": "Soham Dutta",
+      "timestamp": "2026-09-24T06:56:38.156Z"
+    },
     {
       "id": "log_1790226437177",
       "action": "FOUNDER_CREATED",

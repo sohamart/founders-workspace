@@ -405,7 +405,16 @@ export const PortalProvider = ({ children }) => {
         setFounders(foundersRes.data.founders);
         if (user) {
           const freshSelf = foundersRes.data.founders.find(f => f.id === user.id);
-          if (freshSelf && freshSelf.avatar && freshSelf.avatar !== user.avatar) {
+          if (freshSelf && (
+            freshSelf.name !== user.name ||
+            freshSelf.avatar !== user.avatar ||
+            freshSelf.designation !== user.designation ||
+            freshSelf.phone !== user.phone ||
+            freshSelf.bio !== user.bio ||
+            freshSelf.brand !== user.brand ||
+            freshSelf.strikes !== user.strikes ||
+            freshSelf.status !== user.status
+          )) {
             const merged = { ...user, ...freshSelf };
             setCurrentUser(merged);
             localStorage.setItem('founders_user', JSON.stringify(merged));
@@ -692,7 +701,9 @@ export const PortalProvider = ({ children }) => {
     socket.on('USER_UPDATED', (updatedUser) => {
       setFounders(prev => prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f));
       if (currentUserRef.current?.id === updatedUser.id) {
-        setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+        const merged = { ...currentUserRef.current, ...updatedUser };
+        setCurrentUser(merged);
+        localStorage.setItem('founders_user', JSON.stringify(merged));
       }
       refreshData();
     });

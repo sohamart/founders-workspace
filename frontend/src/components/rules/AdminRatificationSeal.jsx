@@ -43,12 +43,13 @@ export const AdminRatificationSeal = ({ onTriggerPrint }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (adminRatification) {
+    // Only sync from adminRatification when studio modal is closed, so background polling doesn't overwrite typing
+    if (!showStudio && adminRatification) {
       if (adminRatification.sealType) setSelectedSeal(adminRatification.sealType);
       if (adminRatification.ratifiedBy) setRatifiedBy(adminRatification.ratifiedBy);
       if (adminRatification.quote) setQuote(adminRatification.quote);
     }
-  }, [adminRatification]);
+  }, [adminRatification, showStudio]);
 
   // Canvas setup when Studio opens
   useEffect(() => {
@@ -533,7 +534,7 @@ export const AdminRatificationSeal = ({ onTriggerPrint }) => {
                   type="text"
                   value={ratifiedBy}
                   onChange={(e) => setRatifiedBy(e.target.value)}
-                  placeholder="e.g. Soham Dutta (Lead Admin Authority)"
+                  placeholder="Enter Lead Admin Name / Title (e.g. SSA TEAM LEAD ADMIN)"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 />
               </div>

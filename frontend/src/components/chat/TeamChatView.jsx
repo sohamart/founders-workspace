@@ -39,6 +39,20 @@ export const TeamChatView = () => {
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Auto-grow textarea smoothly up to ~104px (about 4 lines) then stop and scroll
+  const adjustTextareaHeight = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const newHeight = Math.min(Math.max(el.scrollHeight, 24), 104);
+    el.style.height = `${newHeight}px`;
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputText]);
 
   // List of other founders + admin for DMs
   const dmContacts = founders.filter(f => f.id !== currentUser?.id);
@@ -442,16 +456,17 @@ export const TeamChatView = () => {
             onChange={handleMediaSelect}
           />
 
-          {/* Floating Pill Input */}
-          <div className="flex-1 min-w-0 bg-white rounded-3xl border border-slate-200 shadow-2xs flex items-center px-3 py-1 sm:px-3.5 sm:py-1.5 gap-2 min-h-[40px] sm:min-h-[44px] focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-500/20">
+          {/* Floating Pill Input with Auto-Growing Height */}
+          <div className="flex-1 min-w-0 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xs flex items-end px-3 py-1.5 sm:px-3.5 sm:py-2 gap-2 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-500/20 transition-all">
             <textarea
+              ref={textareaRef}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={selectedRecipient ? `Message ${selectedRecipient.name.split(' ')[0]}...` : "Message founders circle..."}
               rows={1}
-              className="flex-1 min-w-0 text-xs text-slate-800 placeholder:text-slate-400 resize-none max-h-24 focus:outline-none py-1 leading-relaxed bg-transparent"
-              style={{ minHeight: '22px' }}
+              className="flex-1 min-w-0 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 resize-none overflow-y-auto focus:outline-none leading-relaxed bg-transparent"
+              style={{ minHeight: '24px', maxHeight: '104px', height: '24px' }}
             />
           </div>
 
