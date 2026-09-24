@@ -280,55 +280,57 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
             </button>
           </div>
         </div>
-
       </div>
 
       {/* Live Portal Activity Stream (Rule 00 Universal Operational Visibility) */}
-      <div className="p-5 md:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+      <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
+        {/* Stream Header & Responsive Filter Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-orange-50 border border-orange-200/70 text-orange-600 flex items-center justify-center shadow-xs shrink-0">
               <Activity className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">Live Portal Activity Stream</h3>
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">Live Portal Activity Stream</h3>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Real-time operational audit trail across Weblets & StackAdda</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Real-time operational audit trail across Weblets & StackAdda</p>
             </div>
           </div>
 
-          {/* Activity Filters */}
-          <div className="flex flex-wrap items-center gap-1 bg-slate-100/80 p-1 rounded-xl text-xs font-semibold">
-            {[
-              { id: 'all', label: 'All Activities' },
-              { id: 'transfers', label: 'Transfers 🔄' },
-              { id: 'meetings', label: 'Calls & Syncs 📅' },
-              { id: 'tasks', label: 'Tasks ⚡' },
-              { id: 'requests', label: 'Requests 📋' },
-              { id: 'blockers', label: 'Blockers 🚨' }
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => { sound.playPop(); setActivityFilter(f.id); }}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  activityFilter === f.id
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          {/* Activity Filters - Horizontal swipe on mobile, clean pills on desktop */}
+          <div className="w-full lg:w-auto overflow-x-auto no-scrollbar py-1 -mx-1 px-1">
+            <div className="flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/60 w-max">
+              {[
+                { id: 'all', label: 'All Activities' },
+                { id: 'transfers', label: 'Transfers 🔄' },
+                { id: 'meetings', label: 'Calls & Syncs 📅' },
+                { id: 'tasks', label: 'Tasks ⚡' },
+                { id: 'requests', label: 'Requests 📋' },
+                { id: 'blockers', label: 'Blockers 🚨' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { sound.playPop(); setActivityFilter(f.id); }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                    activityFilter === f.id
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/80'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Activity Feed Items */}
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {displayedLogs.length > 0 ? (
             displayedLogs.map((log) => {
               const act = (log.action || '').toUpperCase();
@@ -339,100 +341,106 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
               const isStrike = act.includes('STRIKE') || act.includes('WARNING');
               const isApproval = act.includes('APPROVED') || act.includes('ACCEPTED');
               const isRejection = act.includes('REJECTED') || act.includes('DECLINED');
-              const isCredential = act.includes('CREDENTIAL');
+              const isCredential = act.includes('CREDENTIAL') || act.includes('VAULT');
+
+              // Format clean badge title & color
+              let badgeMeta = { label: act.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()), color: 'bg-slate-100 text-slate-700 border-slate-200' };
+              if (act.includes('FOUNDER_CREATED') || act.includes('NEW_FOUNDER')) {
+                badgeMeta = { label: 'New Founder', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+              } else if (act.includes('PROFILE_UPDATED')) {
+                badgeMeta = { label: 'Profile Updated', color: 'bg-blue-50 text-blue-800 border-blue-200' };
+              } else if (act.includes('TASK_TRANSFER')) {
+                badgeMeta = { label: 'Task Transfer', color: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+              } else if (act.includes('TASK_CREATED') || act.includes('TASK_APPROVED')) {
+                badgeMeta = { label: 'Task Activated', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+              } else if (act.includes('TASK_COMPLETED')) {
+                badgeMeta = { label: 'Task Delivered', color: 'bg-teal-50 text-teal-800 border-teal-200' };
+              } else if (isBlocker) {
+                badgeMeta = { label: 'Blocker Alert', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+              } else if (isStrike) {
+                badgeMeta = { label: 'Disciplinary Strike', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+              } else if (isExtension) {
+                badgeMeta = { label: 'Deadline Extension', color: 'bg-purple-50 text-purple-800 border-purple-200' };
+              } else if (isMeeting) {
+                badgeMeta = { label: 'Strategy Sync', color: 'bg-teal-50 text-teal-800 border-teal-200' };
+              } else if (isCredential) {
+                badgeMeta = { label: 'Client Vault', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+              }
+
+              // Formatted time helper
+              const formatTime = (ts) => {
+                if (!ts) return 'Recent';
+                const d = new Date(ts);
+                const now = new Date();
+                const isToday = d.toDateString() === now.toDateString();
+                const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return isToday ? timeStr : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${timeStr}`;
+              };
 
               return (
                 <div
                   key={log.id || `${log.timestamp}-${Math.random()}`}
-                  className={`p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-3 text-xs ${
-                    isBlocker 
-                      ? 'bg-rose-50/60 border-rose-200 text-rose-900' 
-                      : isTransfer 
-                      ? 'bg-blue-50/60 border-blue-200 text-blue-900'
-                      : isMeeting
-                      ? 'bg-teal-50/60 border-teal-200 text-teal-900'
-                      : isExtension
-                      ? 'bg-purple-50/60 border-purple-200 text-purple-900'
-                      : isStrike
-                      ? 'bg-amber-50/60 border-amber-200 text-amber-900'
-                      : isApproval
-                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
-                      : isRejection
-                      ? 'bg-rose-50/50 border-rose-200 text-rose-900'
-                      : isCredential
-                      ? 'bg-amber-50/50 border-amber-200 text-amber-900'
-                      : 'bg-slate-50/70 border-slate-200/80 text-slate-800 hover:bg-white'
-                  }`}
+                  className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all space-y-2 group"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0">
-                      {isBlocker ? (
-                        <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isTransfer ? (
-                        <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                          <ArrowRightLeft className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isMeeting ? (
-                        <div className="w-6 h-6 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center font-bold">
-                          <Video className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isExtension ? (
-                        <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
-                          <Timer className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isStrike ? (
-                        <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isApproval ? (
-                        <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isRejection ? (
-                        <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
-                          <XCircle className="w-3.5 h-3.5" />
-                        </div>
-                      ) : isCredential ? (
-                        <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
-                          <KeyRound className="w-3.5 h-3.5" />
-                        </div>
-                      ) : (
-                        <div className="w-6 h-6 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center font-bold">
-                          <GitPullRequest className="w-3.5 h-3.5" />
-                        </div>
-                      )}
+                  {/* Top Bar: Icon + Action Badge + Actor + Timestamp */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {/* Category Icon */}
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                        isBlocker ? 'bg-rose-100 text-rose-600' :
+                        isTransfer ? 'bg-indigo-100 text-indigo-600' :
+                        isMeeting ? 'bg-teal-100 text-teal-600' :
+                        isExtension ? 'bg-purple-100 text-purple-600' :
+                        isStrike ? 'bg-amber-100 text-amber-600' :
+                        isApproval ? 'bg-emerald-100 text-emerald-600' :
+                        isRejection ? 'bg-rose-100 text-rose-600' :
+                        isCredential ? 'bg-amber-100 text-amber-600' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {isBlocker ? <AlertTriangle className="w-3.5 h-3.5" /> :
+                         isTransfer ? <ArrowRightLeft className="w-3.5 h-3.5" /> :
+                         isMeeting ? <Video className="w-3.5 h-3.5" /> :
+                         isExtension ? <Timer className="w-3.5 h-3.5" /> :
+                         isStrike ? <AlertCircle className="w-3.5 h-3.5" /> :
+                         isApproval ? <CheckCircle2 className="w-3.5 h-3.5" /> :
+                         isRejection ? <XCircle className="w-3.5 h-3.5" /> :
+                         isCredential ? <KeyRound className="w-3.5 h-3.5" /> :
+                         <GitPullRequest className="w-3.5 h-3.5" />}
+                      </div>
+
+                      {/* Clean Action Badge */}
+                      <span className={`text-[10px] font-bold font-mono tracking-wide px-2 py-0.5 rounded-md border shrink-0 ${badgeMeta.color}`}>
+                        {badgeMeta.label}
+                      </span>
+
+                      {/* Actor Pill */}
+                      <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200/70 px-2 py-0.5 rounded-md truncate max-w-[130px] sm:max-w-[220px]">
+                        by <strong className="text-slate-900">{log.actor || 'System'}</strong>
+                      </span>
                     </div>
 
-                    <div className="space-y-0.5 min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-white/80 border border-slate-200 text-slate-600">
-                          {log.action}
-                        </span>
-                        <span className="text-[11px] font-semibold text-slate-700">
-                          by <strong className="text-slate-900">{log.actor || 'System'}</strong>
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-800 leading-snug">
-                        {log.details}
-                      </p>
-                    </div>
+                    {/* Timestamp */}
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                      {formatTime(log.timestamp)}
+                    </span>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
-                    </span>
+                  {/* Log Content Description */}
+                  <div className="pl-9 pr-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <p className="text-xs text-slate-700 font-normal leading-relaxed break-words flex-1">
+                      {log.details}
+                    </p>
+
                     {(isBlocker || isTransfer || isExtension) && (
                       <button
                         onClick={() => {
                           sound.playPop();
                           setCurrentTab('requests');
                         }}
-                        className="block mt-1 text-[10px] font-bold text-orange-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-xl transition-all cursor-pointer shrink-0 self-start sm:self-auto shadow-2xs"
                       >
-                        Inspect →
+                        <span>Inspect</span>
+                        <ArrowUpRight className="w-3 h-3" />
                       </button>
                     )}
                   </div>
@@ -452,7 +460,7 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
                   sound.playPop();
                   setShowAllActivities(prev => !prev);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-orange-50/60 border border-slate-200 text-orange-600 transition-all shadow-xs"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-orange-50/60 border border-slate-200 text-orange-600 transition-all shadow-xs cursor-pointer"
               >
                 {showAllActivities ? 'Show Fewer Logs (Top 30)' : `Show All (${filteredLogs.length}) Logs →`}
               </button>

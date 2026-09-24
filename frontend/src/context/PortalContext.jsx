@@ -1328,13 +1328,16 @@ export const PortalProvider = ({ children }) => {
     }
   };
 
-  const ratifyCharter = async (sealType, signatureText) => {
+  const ratifyCharter = async (sealData, signatureText) => {
     try {
-      const res = await apiClient.post('/admin/rules/ratify', { sealType, signatureText });
+      const payload = typeof sealData === 'object' 
+        ? sealData 
+        : { sealType: sealData, signatureText };
+      const res = await apiClient.post('/admin/rules/ratify', payload);
       if (res.data.success) {
-        showToast('Charter Ratified', 'SSA TEAM official seal and witness stamp applied.', 'success');
+        showToast('Charter Ratified', 'Lead Admin seal & signature updated successfully.', 'success');
         refreshData();
-        return { success: true };
+        return { success: true, adminRatification: res.data.adminRatification };
       }
     } catch (err) {
       showToast('Error', err.response?.data?.message || 'Failed to ratify charter.', 'error');

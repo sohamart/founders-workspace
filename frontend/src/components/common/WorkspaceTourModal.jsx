@@ -217,20 +217,19 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
   // SMART BULLETPROOF VIEWPORT POSITIONING
   let popoverStyle = {};
   if (isMobile) {
-    // Mobile / Tablet: Never overlaps target, never cuts off outside screen boundaries
+    // Mobile / Tablet: Bulletproof horizontal centering using left: 12, right: 12, margin: 0 auto
+    // NEVER uses transform: translateX(-50%) which gets overridden by CSS animations!
     const targetTop = targetRect ? targetRect.top : 0;
-    const placeAtTop = targetRect && targetTop > 200;
+    const placeAtTop = targetRect && targetTop > 220;
 
     popoverStyle = {
       position: 'fixed',
-      ...(placeAtTop 
-        ? { top: 16 } 
-        : { bottom: 84 } // Above mobile bottom dock
-      ),
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: cardWidth,
-      maxWidth: 'calc(100vw - 24px)',
+      ...(placeAtTop ? { top: 16 } : { bottom: 84 }),
+      left: 12,
+      right: 12,
+      margin: '0 auto',
+      maxWidth: 380,
+      width: 'auto',
       boxSizing: 'border-box',
       zIndex: 99995
     };
@@ -240,9 +239,10 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
       popoverStyle = {
         position: 'fixed',
         bottom: 28,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: 380,
+        left: 24,
+        right: 24,
+        margin: '0 auto',
+        maxWidth: 380,
         zIndex: 99995
       };
     } else {
@@ -260,13 +260,14 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
       topPos = Math.max(16, Math.min(viewport.height - cardHeight - 16, topPos));
 
       let leftPos = targetRect.left + targetRect.width / 2 - 190;
-      leftPos = Math.max(16, Math.min(viewport.width - 380 - 16, leftPos));
+      leftPos = Math.max(16, Math.min(viewport.width - 396, leftPos));
 
       popoverStyle = {
         position: 'fixed',
         top: topPos,
         left: leftPos,
         width: 380,
+        maxWidth: 'calc(100vw - 32px)',
         zIndex: 99995
       };
     }
@@ -333,7 +334,7 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
       <div 
         style={popoverStyle}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-orange-200/90 text-slate-800 animate-fade-in flex flex-col justify-between transition-all duration-300 ease-out pointer-events-auto box-border max-h-[45vh] overflow-hidden"
+        className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-orange-200/90 text-slate-800 flex flex-col justify-between transition-all duration-300 ease-out pointer-events-auto box-border max-h-[45vh] overflow-hidden"
       >
         {/* Header: Step Badge + Title + Close */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">

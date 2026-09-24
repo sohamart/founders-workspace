@@ -368,22 +368,27 @@ exports.ratifyRulesBook = async (req, res) => {
     return res.status(403).json({ success: false, message: 'Only Lead Admin can ratify the official charter.' });
   }
 
-  const { sealType, signatureText } = req.body; // sealType: 'gold_crest' | 'dual_brand' | 'protocol'
+  const { sealType, signatureText, signatureData, signatureHash, quote, ratifiedBy } = req.body;
   const store = getStore();
 
+  const prev = store.adminRatification || {};
+
   store.adminRatification = {
-    quote: "I, Lead Admin, hereby ratify, execute and officially enforce the Founders' Strict Rules & Agreement (Version 2.0) across Weblets and StackAdda.",
-    ratifiedBy: "SSA TEAM",
-    date: new Date().toLocaleDateString(),
-    sealType: sealType || 'gold_crest',
-    signatureText: signatureText || 'SSA TEAM LEAD ADMIN',
-    verified: true
+    quote: quote || prev.quote || "I, Lead Admin, hereby ratify, execute and officially enforce the Founders' Strict Rules & Agreement (Version 2.0) across Weblets and StackAdda.",
+    ratifiedBy: ratifiedBy || prev.ratifiedBy || req.user.name || "SSA TEAM LEAD ADMIN",
+    date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+    sealType: sealType || prev.sealType || 'gold_crest',
+    signatureText: signatureText || prev.signatureText || 'SSA TEAM LEAD ADMIN',
+    signatureData: signatureData !== undefined ? signatureData : (prev.signatureData || null),
+    signatureHash: signatureHash || prev.signatureHash || `SHA:ADMIN_${Date.now().toString(16).toUpperCase()}`,
+    verified: true,
+    updatedAt: new Date().toISOString()
   };
 
   store.auditLogs.unshift({
     id: `log_${Date.now()}`,
     action: 'CHARTER_RATIFIED',
-    details: `Lead Admin (SSA TEAM) updated legal ratification seal to [${sealType || 'gold_crest'}].`,
+    details: `Lead Admin (${req.user.name}) updated legal ratification seal to [${store.adminRatification.sealType}] with manual signature.`,
     actor: req.user.name,
     timestamp: new Date().toISOString()
   });
@@ -392,7 +397,7 @@ exports.ratifyRulesBook = async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Charter ratified with official SSA TEAM seal.',
+    message: 'Charter ratified with official SSA TEAM seal and manual signature.',
     adminRatification: store.adminRatification
   });
 };

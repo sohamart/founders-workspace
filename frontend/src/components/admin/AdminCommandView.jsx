@@ -16,7 +16,19 @@ import {
   FileWarning,
   Globe,
   Sliders,
-  Calendar
+  Calendar,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  Share2,
+  MessageCircle,
+  X,
+  ExternalLink,
+  Sparkles,
+  Phone,
+  Mail,
+  User
 } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
 
@@ -73,6 +85,10 @@ export const AdminCommandView = () => {
   const [designation, setDesignation] = useState('');
   const [phone, setPhone] = useState('');
   const [tempPassword, setTempPassword] = useState('Temp#Pass2026');
+  const [showTempPassword, setShowTempPassword] = useState(false);
+  const [showModalTempPassword, setShowModalTempPassword] = useState(false);
+  const [createdFounderData, setCreatedFounderData] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
 
   // Strike Form State
   const [selectedFounderId, setSelectedFounderId] = useState('');
@@ -82,16 +98,87 @@ export const AdminCommandView = () => {
   // Password Override State
   const [overrideUserId, setOverrideUserId] = useState('');
   const [newOverridePass, setNewOverridePass] = useState('');
+  const [showOverridePass, setShowOverridePass] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let pass = 'Temp#';
+    for (let i = 0; i < 5; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    pass += '!';
+    setTempPassword(pass);
+    sound.playPop();
+  };
+
+  const copyToClipboard = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    sound.playPop();
+    setTimeout(() => {
+      setCopiedField((prev) => (prev === fieldName ? null : prev));
+    }, 2500);
+  };
+
+  const getDispatchMessage = (data) => {
+    if (!data) return '';
+    return `🚀 SSA TEAM • FOUNDER WORKSPACE INVITATION
+
+Dear ${data.name},
+You have been formally provisioned as ${data.designation} on the SSA TEAM Founders Portal.
+
+🔑 ACCESS CREDENTIALS:
+• Portal URL: ${data.portalUrl}
+• Login Email: ${data.email}
+• Temporary Password: ${data.tempPassword}
+${data.phone ? `• Registered Phone: ${data.phone}\n` : ''}
+📋 FIRST-TIME ONBOARDING INSTRUCTIONS:
+1. Open the Portal URL and sign in using your Login Email and Temporary Password.
+2. Set your private, permanent security password.
+3. Configure your executive profile.
+4. Read and ratify the Founders Bylaws & 2-Strike Charter.
+
+Welcome aboard! Let's build with speed, accountability, and excellence.`;
+  };
+
+  const getWhatsAppShareUrl = (data) => {
+    if (!data) return '';
+    const text = encodeURIComponent(getDispatchMessage(data));
+    const cleanPhone = data.phone ? data.phone.replace(/[^0-9]/g, '') : '';
+    if (cleanPhone) {
+      return `https://wa.me/${cleanPhone}?text=${text}`;
+    }
+    return `https://api.whatsapp.com/send?text=${text}`;
+  };
 
   const handleCreateFounder = async (e) => {
     e.preventDefault();
-    if (!name || !email) return;
-    const res = await createFounder({ name, email, designation, phone, tempPassword });
-    if (res.success) {
+    if (!name.trim() || !email.trim()) return;
+    const res = await createFounder({ 
+      name: name.trim(), 
+      email: email.trim(), 
+      designation: designation.trim() || 'Co-Founder', 
+      phone: phone.trim(), 
+      tempPassword 
+    });
+    if (res && res.success) {
+      const generatedPass = res.tempPassword || tempPassword;
+      setCreatedFounderData({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        designation: designation.trim() || 'Co-Founder',
+        phone: phone.trim(),
+        tempPassword: generatedPass,
+        portalUrl: window.location.origin
+      });
+      setShowModalTempPassword(true);
+      sound.playChime();
       setName('');
       setEmail('');
       setDesignation('');
       setPhone('');
+      setTempPassword('Temp#' + Math.random().toString(36).substring(2, 7).toUpperCase() + '!');
       setShowAddFounder(false);
     }
   };
@@ -274,64 +361,127 @@ export const AdminCommandView = () => {
 
         {/* Add Founder Form */}
         {showAddFounder && (
-          <form onSubmit={handleCreateFounder} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 animate-fade-in text-xs">
-            <h4 className="font-bold text-slate-800">Provision New Founder Account</h4>
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleCreateFounder} className="p-5 rounded-2xl bg-orange-50/50 border border-orange-200/90 space-y-4 animate-fade-in text-xs">
+            <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+              <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                <UserPlus className="w-4 h-4 text-orange-600" />
+                <span>Provision New Founder Account</span>
+              </h4>
+              <span className="text-[10px] text-orange-700 bg-orange-100 font-semibold px-2 py-0.5 rounded-full border border-orange-200">
+                Credentials Generated on Submit
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Full Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Full Name <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Alex Rivera"
                   required
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Email Address <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="alex@weblets.bond"
                   required
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Designation</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Designation / Role <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   value={designation}
                   onChange={(e) => setDesignation(e.target.value)}
                   placeholder="e.g. Growth & Marketing"
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                  required
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Temporary Password</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Phone Number (WhatsApp)
+                </label>
                 <input
                   type="text"
-                  value={tempPassword}
-                  onChange={(e) => setTempPassword(e.target.value)}
-                  required
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-mono"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none font-mono"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-slate-700">
+                    Temporary Password <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[10px] text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 cursor-pointer"
+                    title="Generate secure random password"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Generate</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showTempPassword ? 'text' : 'password'}
+                    value={tempPassword}
+                    onChange={(e) => setTempPassword(e.target.value)}
+                    required
+                    className="w-full pl-3 pr-9 py-2 rounded-xl border border-slate-200 bg-white font-mono text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTempPassword(!showTempPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                    tabIndex={-1}
+                    title={showTempPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showTempPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold shadow-sm transition-all"
-            >
-              Generate Founder Account & Temp Password
-            </button>
+            <div className="pt-1 flex items-center gap-3">
+              <button
+                type="submit"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Create Founder & Open Dispatch Share Modal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddFounder(false)}
+                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         )}
 
@@ -529,26 +679,189 @@ export const AdminCommandView = () => {
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">New Encrypted Password</label>
-            <input
-              type="password"
-              value={newOverridePass}
-              onChange={(e) => setNewOverridePass(e.target.value)}
-              placeholder="New password (min 6 chars)..."
-              required
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono"
-            />
+            <div className="relative">
+              <input
+                type={showOverridePass ? 'text' : 'password'}
+                value={newOverridePass}
+                onChange={(e) => setNewOverridePass(e.target.value)}
+                placeholder="New password (min 6 chars)..."
+                required
+                className="w-full pl-3 pr-9 py-2 rounded-xl border border-slate-200 bg-white font-mono text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOverridePass(!showOverridePass)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                tabIndex={-1}
+                title={showOverridePass ? 'Hide password' : 'Show password'}
+              >
+                {showOverridePass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full py-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold transition-all shadow-md shadow-orange-600/20"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold transition-all shadow-md shadow-orange-600/20 cursor-pointer"
             >
               Apply Instant Password Override
             </button>
           </div>
         </form>
       </div>
+
+      {/* 4. FOUNDER CREDENTIAL SHARE & DISPATCH POPUP MODAL */}
+      {createdFounderData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in text-slate-800">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-orange-200/90 space-y-5 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Founder Account Provisioned!</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300">
+                      DISPATCH READY
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Share or copy these login credentials to dispatch to the founder immediately.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCreatedFounderData(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Credentials Summary Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                <span className="text-slate-500 font-medium">Founder Name:</span>
+                <span className="font-bold text-slate-900">{createdFounderData.name}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                <span className="text-slate-500 font-medium">Designation:</span>
+                <span className="font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                  {createdFounderData.designation}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                <span className="text-slate-500 font-medium">Login Email:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-slate-800 font-semibold">{createdFounderData.email}</span>
+                  <button
+                    onClick={() => copyToClipboard(createdFounderData.email, 'email')}
+                    className="p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700 cursor-pointer"
+                    title="Copy Email"
+                  >
+                    {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              {createdFounderData.phone && (
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                  <span className="text-slate-500 font-medium">Phone (WhatsApp):</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-slate-800">{createdFounderData.phone}</span>
+                    <button
+                      onClick={() => copyToClipboard(createdFounderData.phone, 'phone')}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700 cursor-pointer"
+                      title="Copy Phone"
+                    >
+                      {copiedField === 'phone' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-slate-500 font-medium">Temporary Password:</span>
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-xl">
+                  <span className="font-mono font-bold text-amber-900 text-xs select-all">
+                    {showModalTempPassword ? createdFounderData.tempPassword : '••••••••••••'}
+                  </span>
+                  <button
+                    onClick={() => setShowModalTempPassword(!showModalTempPassword)}
+                    className="p-1 text-amber-700 hover:text-amber-900 cursor-pointer"
+                    title={showModalTempPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showModalTempPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => copyToClipboard(createdFounderData.tempPassword, 'password')}
+                    className="p-1 text-amber-700 hover:text-amber-900 cursor-pointer"
+                    title="Copy Password"
+                  >
+                    {copiedField === 'password' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Formatted Dispatch Message Box */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Share2 className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Pre-Formatted Executive Dispatch Message</span>
+                </label>
+                <span className="text-[10px] text-slate-400">Ready to send</span>
+              </div>
+              <pre className="p-3.5 rounded-2xl bg-slate-900 text-slate-100 font-mono text-[11px] leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto border border-slate-800 select-all">
+                {getDispatchMessage(createdFounderData)}
+              </pre>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => copyToClipboard(getDispatchMessage(createdFounderData), 'full_message')}
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {copiedField === 'full_message' ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span>Copied Dispatch Message to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Full Dispatch Message</span>
+                  </>
+                )}
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={getWhatsAppShareUrl(createdFounderData)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all text-center cursor-pointer shadow-xs"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Share via WhatsApp</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setCreatedFounderData(null)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Done / Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
