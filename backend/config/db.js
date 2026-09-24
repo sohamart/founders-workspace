@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
 
 let isMongoConnected = false;
 const dataDir = path.join(__dirname, '../data');
@@ -18,6 +19,14 @@ const connectDB = async () => {
     console.log('ℹ️  MONGODB_URI not configured. Operating in high-performance local persistent JSON store mode.');
     isMongoConnected = false;
     return;
+  }
+
+  // Configure high-reliability DNS resolvers (Google 8.8.8.8 & Cloudflare 1.1.1.1)
+  // to prevent Windows / local ISP DNS SRV refusal (querySrv ECONNREFUSED)
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+  } catch (dnsErr) {
+    // Keep default resolver if setServers fails
   }
 
   try {
