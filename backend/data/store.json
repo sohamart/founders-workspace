@@ -448,6 +448,13 @@
   "notifications": [],
   "auditLogs": [
     {
+      "id": "log_1790235106596",
+      "action": "SETTINGS_UPDATED",
+      "details": "SSA TEAM LEAD ADMIN updated portal settings. Coming Soon: Disabled.",
+      "actor": "SSA TEAM LEAD ADMIN",
+      "timestamp": "2026-09-24T07:31:46.596Z"
+    },
+    {
       "id": "log_1790233629739",
       "action": "USER_LOGIN",
       "details": "SSA TEAM LEAD ADMIN (superadmin) logged in.",
@@ -514,11 +521,11 @@
   "settings": {
     "brandName": "Weblets® × StackAdda™",
     "tagline": "Three Founders. Two Brands. One Standard.",
-    "comingSoonActive": true,
+    "comingSoonActive": false,
     "securityFreezeActive": false,
     "emergencyNotice": "",
-    "allowBypass": true,
-    "targetLaunchDate": "2026-10-01T01:00:00.000Z",
+    "allowBypass": false,
+    "targetLaunchDate": "2026-09-30T19:30:00.000Z",
     "bypassPasscode": "FOUNDER2026"
   }
 }
