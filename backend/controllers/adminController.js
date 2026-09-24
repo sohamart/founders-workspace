@@ -44,14 +44,16 @@ exports.createFounder = async (req, res) => {
     return res.status(400).json({ success: false, message: 'A user with this email already exists.' });
   }
 
-  const passwordToUse = tempPassword || 'Temp#Pass2026';
+  const crypto = require('crypto');
+  const generatedSecurePass = `Fndr_${crypto.randomBytes(4).toString('hex')}!`;
+  const passwordToUse = (tempPassword && tempPassword.trim()) ? tempPassword.trim() : generatedSecurePass;
   const passwordHash = bcrypt.hashSync(passwordToUse, 10);
 
   const newFounder = {
     id: `founder_${Date.now()}`,
     name: name.trim(),
     email: email.trim().toLowerCase(),
-    role: 'founder',
+    role: 'founder', // STRICT: Only 1 Lead Admin can exist. All added members are founders.
     designation: designation || 'Executive Founder',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
     phone: phone || '',
@@ -77,9 +79,13 @@ exports.createFounder = async (req, res) => {
 
   saveStore(store);
 
+  if (req.io) {
+    req.io.emit('USER_UPDATED', newFounder);
+  }
+
   res.status(201).json({
     success: true,
-    message: `Founder account created for ${newFounder.name}. Temporary password: ${passwordToUse}`,
+    message: `Founder account created for ${newFounder.name}.`,
     founder: newFounder,
     tempPassword: passwordToUse
   });
@@ -97,11 +103,25 @@ exports.deleteFounder = async (req, res) => {
   }
 
   if (store.users[userIndex].role === 'superadmin') {
-    return res.status(400).json({ success: false, message: 'Cannot delete the Super Admin account.' });
+    return res.status(400).json({ success: false, message: 'Cannot delete the Super Admin account. Exactly 1 Lead Admin must exist.' });
   }
 
   const removedName = store.users[userIndex].name;
   store.users.splice(userIndex, 1);
+
+  // Clean up any signatures from this founder
+  if (Array.isArray(store.foundersSignatures)) {
+    store.foundersSignatures = store.foundersSignatures.filter(s => s.founderId !== id);
+  }
+
+  // Clean up task assignments
+  if (Array.isArray(store.tasks)) {
+    store.tasks.forEach(t => {
+      if (Array.isArray(t.assignedTo)) {
+        t.assignedTo = t.assignedTo.filter(userId => userId !== id);
+      }
+    });
+  }
 
   store.auditLogs.unshift({
     id: `log_${Date.now()}`,
@@ -112,6 +132,11 @@ exports.deleteFounder = async (req, res) => {
   });
 
   saveStore(store);
+
+  if (req.io) {
+    req.io.emit('FOUNDER_DELETED', { id, name: removedName });
+    req.io.emit('USER_UPDATED', { id, deleted: true });
+  }
 
   res.json({
     success: true,

@@ -1,8 +1,10 @@
 const bcrypt = require('bcryptjs');
 
-// Pre-computed salted bcrypt hashes for default password 'password123'
-const defaultPasswordHash = bcrypt.hashSync('password123', 10);
-const adminPasswordHash = bcrypt.hashSync('Admin12345', 10);
+// Pre-computed salted bcrypt hashes
+const defaultPassword = process.env.INITIAL_DEFAULT_PASSWORD || 'password123';
+const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin12345';
+const defaultPasswordHash = bcrypt.hashSync(defaultPassword, 10);
+const adminPasswordHash = bcrypt.hashSync(adminPassword, 10);
 
 const initialUsers = [
   {

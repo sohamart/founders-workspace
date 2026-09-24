@@ -87,7 +87,7 @@ export const PortalProvider = ({ children }) => {
       comingSoonActive: false,
       allowBypass: true,
       targetLaunchDate: '2026-10-01T00:00:00.000Z',
-      bypassPasscode: 'FOUNDER2026'
+      bypassPasscode: import.meta.env.VITE_BYPASS_PASSCODE || ''
     };
   });
 
@@ -699,12 +699,21 @@ export const PortalProvider = ({ children }) => {
     });
 
     socket.on('USER_UPDATED', (updatedUser) => {
-      setFounders(prev => prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f));
-      if (currentUserRef.current?.id === updatedUser.id) {
-        const merged = { ...currentUserRef.current, ...updatedUser };
-        setCurrentUser(merged);
-        localStorage.setItem('founders_user', JSON.stringify(merged));
+      if (updatedUser.deleted) {
+        setFounders(prev => prev.filter(f => f.id !== updatedUser.id));
+      } else {
+        setFounders(prev => prev.map(f => f.id === updatedUser.id ? { ...f, ...updatedUser } : f));
+        if (currentUserRef.current?.id === updatedUser.id) {
+          const merged = { ...currentUserRef.current, ...updatedUser };
+          setCurrentUser(merged);
+          localStorage.setItem('founders_user', JSON.stringify(merged));
+        }
       }
+      refreshData();
+    });
+
+    socket.on('FOUNDER_DELETED', ({ id }) => {
+      setFounders(prev => prev.filter(f => f.id !== id));
       refreshData();
     });
 
@@ -1372,14 +1381,18 @@ export const PortalProvider = ({ children }) => {
   };
 
   const deleteFounder = async (founderId) => {
+    // 1. Optimistically remove from list immediately for responsive UI
+    setFounders(prev => prev.filter(f => f.id !== founderId));
     try {
       const res = await apiClient.delete(`/admin/founders/${founderId}`);
       if (res.data.success) {
+        sound.playPop();
         showToast('Founder Removed', res.data.message, 'info');
         refreshData();
         return { success: true };
       }
     } catch (err) {
+      refreshData();
       showToast('Error', err.response?.data?.message || 'Failed to remove founder.', 'error');
       return { success: false };
     }

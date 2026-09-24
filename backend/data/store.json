@@ -24,25 +24,6 @@
       "createdAt": "2026-09-23T18:41:26.830Z",
       "bio": "",
       "brand": "Both Brands"
-    },
-    {
-      "id": "founder_1790226437177",
-      "name": "Test Founder",
-      "email": "test@weblets.bond",
-      "role": "founder",
-      "designation": "Dev",
-      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80",
-      "phone": "",
-      "status": "active",
-      "strikes": 0,
-      "strikeHistory": [],
-      "mustChangePassword": true,
-      "isOnboarded": false,
-      "signature": {
-        "signed": false
-      },
-      "passwordHash": "$2b$10$DNAoKjE.CVEmRhe1Y1Biee4hAtO5990YO475wWKVS.qSsuQUlL.kS",
-      "createdAt": "2026-09-24T05:07:17.177Z"
     }
   ],
   "rules": [

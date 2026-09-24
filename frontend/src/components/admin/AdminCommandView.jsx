@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { usePortal } from '../../context/PortalContext';
 import { 
   ShieldCheck, 
@@ -49,22 +50,45 @@ export const AdminCommandView = () => {
   // Portal Gateway & Launch Settings State
   const [comingSoonActive, setComingSoonActive] = useState(portalSettings?.comingSoonActive ?? true);
   const [allowBypass, setAllowBypass] = useState(portalSettings?.allowBypass ?? true);
-  const [bypassPasscode, setBypassPasscode] = useState(portalSettings?.bypassPasscode || 'FOUNDER2026');
+  const [bypassPasscode, setBypassPasscode] = useState(portalSettings?.bypassPasscode || '');
   const [targetLaunchDate, setTargetLaunchDate] = useState(
     portalSettings?.targetLaunchDate ? portalSettings.targetLaunchDate.slice(0, 16) : '2026-10-01T00:00'
   );
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
+  // Founder Deletion Confirmation & Animation States
+  const [founderToDelete, setFounderToDelete] = useState(null);
+  const [deletingFounderId, setDeletingFounderId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     if (portalSettings) {
       setComingSoonActive(portalSettings.comingSoonActive ?? true);
       setAllowBypass(portalSettings.allowBypass ?? true);
-      setBypassPasscode(portalSettings.bypassPasscode || 'FOUNDER2026');
+      setBypassPasscode(portalSettings.bypassPasscode || '');
       if (portalSettings.targetLaunchDate) {
         setTargetLaunchDate(portalSettings.targetLaunchDate.slice(0, 16));
       }
     }
   }, [portalSettings]);
+
+  const handleConfirmDelete = async () => {
+    if (!founderToDelete) return;
+    const targetId = founderToDelete.id;
+    try {
+      setIsDeleting(true);
+      setDeletingFounderId(targetId);
+      sound.playPop();
+
+      // Smooth disintegration exit animation delay
+      await new Promise(r => setTimeout(r, 350));
+      await deleteFounder(targetId);
+      setFounderToDelete(null);
+    } finally {
+      setIsDeleting(false);
+      setDeletingFounderId(null);
+    }
+  };
 
   const handleSaveGatewaySettings = async (e) => {
     e.preventDefault();
@@ -311,7 +335,7 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
                 type="text"
                 value={bypassPasscode}
                 onChange={(e) => setBypassPasscode(e.target.value)}
-                placeholder="e.g. FOUNDER2026"
+                placeholder="Enter secure bypass passcode (e.g. Secret Key)"
                 className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
@@ -490,7 +514,11 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
           {founders.map((f) => (
             <div
               key={f.id}
-              className="p-3.5 rounded-2xl border border-slate-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
+              className={`p-3.5 rounded-2xl border border-slate-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs transition-all duration-500 ease-in-out ${
+                deletingFounderId === f.id
+                  ? 'opacity-0 scale-90 -translate-x-10 max-h-0 py-0 my-0 overflow-hidden bg-rose-100 border-rose-300 shadow-none'
+                  : 'opacity-100 scale-100 translate-x-0'
+              }`}
             >
               <div className="flex items-center gap-3">
                 <img src={f.avatar} alt={f.name} className="w-9 h-9 min-w-[36px] max-w-[36px] aspect-square shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
@@ -516,7 +544,7 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
                     </span>
                     <button
                       onClick={() => handlePardon(f.id)}
-                      className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-[10px] border border-emerald-200"
+                      className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-[10px] border border-emerald-200 cursor-pointer"
                       title="Pardon 1 Strike"
                     >
                       Pardon Strike
@@ -530,9 +558,13 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
 
                 {f.role !== 'superadmin' && (
                   <button
-                    onClick={() => deleteFounder(f.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title="Delete Account"
+                    type="button"
+                    onClick={() => {
+                      sound.playWarning();
+                      setFounderToDelete(f);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    title="Permanently Expel & Delete Founder"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -711,10 +743,13 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
         </form>
       </div>
 
-      {/* 4. FOUNDER CREDENTIAL SHARE & DISPATCH POPUP MODAL */}
-      {createdFounderData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fade-in text-slate-800">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-orange-200/90 space-y-5 max-h-[92vh] overflow-y-auto">
+      {/* 4. FOUNDER CREDENTIAL SHARE & DISPATCH POPUP MODAL (FULL-SCREEN PORTAL) */}
+      {createdFounderData && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in text-slate-800 select-none">
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-orange-200/90 space-y-5 max-h-[92vh] overflow-y-auto animate-scale-up"
+          >
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
@@ -860,7 +895,81 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 5. EXECUTIVE FOUNDER DELETION CONFIRMATION MODAL (FULL-SCREEN PORTAL) */}
+      {founderToDelete && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in select-none">
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-red-200 space-y-5 text-slate-800 animate-scale-up"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-rose-700 font-mono bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                  PERMANENT EXPULSION
+                </span>
+                <h3 className="text-base font-extrabold text-slate-900 mt-0.5">
+                  Confirm Founder Deletion
+                </h3>
+              </div>
+            </div>
+
+            {/* Founder Card Preview */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+              <img 
+                src={founderToDelete.avatar} 
+                alt={founderToDelete.name} 
+                className="w-11 h-11 rounded-full object-cover ring-2 ring-rose-200 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-slate-900 text-sm truncate">{founderToDelete.name}</div>
+                <div className="text-[11px] text-slate-500 truncate">{founderToDelete.designation || 'Founder'}</div>
+                <div className="text-[10px] text-slate-400 font-mono truncate">{founderToDelete.email}</div>
+              </div>
+            </div>
+
+            {/* Warning Notice */}
+            <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200 text-xs text-rose-950 space-y-1 leading-relaxed">
+              <div className="font-bold flex items-center gap-1.5 text-rose-800">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Irreversible Administrative Action</span>
+              </div>
+              <p className="text-[11px] text-slate-700">
+                This founder account will be permanently expunged from the registry, task assignments will be unlinked, and constitutional signatures will be removed.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setFounderToDelete(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-md shadow-rose-600/30 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? 'Expelling Account...' : 'Permanently Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

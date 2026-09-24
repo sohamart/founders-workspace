@@ -278,10 +278,10 @@ exports.verifyBypassKey = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Passcode required.' });
   }
 
-  const configuredPasscode = (settings.bypassPasscode || 'FOUNDER2026').trim();
-  const validKeys = [configuredPasscode, ADMIN_BYPASS_KEY, 'ADMIN', 'FOUNDERS2026'];
+  const configuredPasscode = (settings.bypassPasscode || process.env.BYPASS_PASSCODE || '').trim();
+  const validKeys = [configuredPasscode, ADMIN_BYPASS_KEY].filter(Boolean);
 
-  if (validKeys.includes(key.trim())) {
+  if (validKeys.length > 0 && validKeys.includes(key.trim())) {
     return res.json({ success: true, message: 'Passcode verified. Access granted.' });
   }
 
@@ -297,10 +297,10 @@ exports.getMe = async (req, res) => {
   });
 };
 
-// @desc Update Profile (Avatar, Phone, Designation, Name, Bio, Brand, Password)
+// @desc Update Profile (Avatar, Phone, Designation, Name, Bio, Brand, Email, Password)
 // @route PUT /api/auth/profile
 exports.updateProfile = async (req, res) => {
-  const { avatar, phone, designation, name, bio, brand, currentPassword, newPassword } = req.body;
+  const { avatar, phone, designation, name, bio, brand, email, currentPassword, newPassword } = req.body;
   const store = getStore();
   const user = store.users.find(u => u.id === req.user.id);
   if (!user) return res.status(404).json({ success: false, message: 'User not found' });
@@ -318,6 +318,23 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
     }
     user.passwordHash = bcrypt.hashSync(newPassword, 10);
+  }
+
+  // Admin can change their own email (Strict rule: ONLY Super Admin can change administrative email)
+  if (email && email.trim()) {
+    if (user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Only Lead Admin can modify administrative email.' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ success: false, message: 'Invalid email address format.' });
+    }
+    const emailConflict = store.users.find(u => u.id !== user.id && u.email.toLowerCase() === cleanEmail);
+    if (emailConflict) {
+      return res.status(400).json({ success: false, message: 'This email is already in use by another account.' });
+    }
+    user.email = cleanEmail;
   }
 
   if (avatar) user.avatar = avatar;

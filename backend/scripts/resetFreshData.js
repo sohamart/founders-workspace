@@ -3,7 +3,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const initialSeed = require('../config/initialSeed');
 
-const adminPassword = 'Admin12345';
+const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin12345';
 const salt = bcrypt.genSaltSync(10);
 const passwordHash = bcrypt.hashSync(adminPassword, salt);
 

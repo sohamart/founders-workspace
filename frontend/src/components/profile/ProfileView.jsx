@@ -41,6 +41,7 @@ export const ProfileView = () => {
 
   // Profile Form State
   const [name, setName] = useState(currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
   const [avatar, setAvatar] = useState(currentUser?.avatar || '');
   const [designation, setDesignation] = useState(currentUser?.designation || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
@@ -51,6 +52,7 @@ export const ProfileView = () => {
   useEffect(() => {
     if (currentUser) {
       if (currentUser.name !== undefined) setName(currentUser.name || '');
+      if (currentUser.email !== undefined) setEmail(currentUser.email || '');
       if (currentUser.avatar !== undefined) setAvatar(currentUser.avatar || '');
       if (currentUser.designation !== undefined) setDesignation(currentUser.designation || '');
       if (currentUser.phone !== undefined) setPhone(currentUser.phone || '');
@@ -134,6 +136,11 @@ export const ProfileView = () => {
         bio: bio.trim(),
         brand: brand
       };
+
+      // Only Lead Admin can modify their email
+      if (currentUser?.role === 'superadmin' && email.trim()) {
+        payload.email = email.trim();
+      }
 
       if (newPassword) {
         payload.currentPassword = currentPassword;
@@ -407,13 +414,40 @@ export const ProfileView = () => {
 
                 {/* Email (Official) */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Official Portal Email</label>
-                  <input
-                    type="email"
-                    value={currentUser?.email || ''}
-                    disabled
-                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-mono text-slate-500 bg-slate-100 cursor-not-allowed"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">Official Portal Email</label>
+                    {currentUser?.role === 'superadmin' ? (
+                      <span className="text-[10px] text-amber-700 bg-amber-50 font-bold px-2 py-0.5 rounded border border-amber-200">
+                        Lead Admin Exclusive Edit
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 bg-slate-100 font-mono px-1.5 py-0.5 rounded">
+                        Locked
+                      </span>
+                    )}
+                  </div>
+                  {currentUser?.role === 'superadmin' ? (
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="admin@company.com"
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50/50"
+                    />
+                  ) : (
+                    <input
+                      type="email"
+                      value={currentUser?.email || ''}
+                      disabled
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs font-mono text-slate-500 bg-slate-100 cursor-not-allowed"
+                    />
+                  )}
+                  <p className="text-[10px] text-slate-400">
+                    {currentUser?.role === 'superadmin'
+                      ? 'Lead Admin can update their administrative login email.'
+                      : 'Founder email is managed and locked by Lead Admin.'}
+                  </p>
                 </div>
 
                 {/* Executive Designation */}
