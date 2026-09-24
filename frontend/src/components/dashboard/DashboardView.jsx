@@ -69,7 +69,7 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
     <div className="space-y-6 animate-fade-in max-w-[1700px] mx-auto pb-28 md:pb-16">
       
       {/* Welcome Hero Card */}
-      <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-orange-50/70 via-white to-amber-50/50 border border-orange-200/90 shadow-xs relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div data-tour="dashboard-hero" className="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-orange-50/70 via-white to-amber-50/50 border border-orange-200/90 shadow-xs relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 z-10 max-w-xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5 text-orange-600" />
@@ -107,7 +107,7 @@ export const DashboardView = ({ onOpenCreateTask, onOpenNewClient }) => {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div data-tour="dashboard-kpis" className="grid grid-cols-2 md:grid-cols-4 gap-4">
         
         {/* Card 1: My Pending Tasks */}
         <div 

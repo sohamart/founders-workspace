@@ -76,7 +76,7 @@ export const MeetingBanner = ({ onOpenHostModal, onOpenScheduleModal }) => {
 
   if (isCollapsed) {
     return (
-      <div className="shrink-0 relative z-20 w-full bg-gradient-to-r from-orange-50 via-white to-amber-50/80 border-b border-orange-200/80 text-slate-800 px-3 py-1 shadow-2xs">
+      <div data-tour="meeting-banner" className="shrink-0 relative z-20 w-full bg-gradient-to-r from-orange-50 via-white to-amber-50/80 border-b border-orange-200/80 text-slate-800 px-3 py-1 shadow-2xs">
         <div className="max-w-[1700px] mx-auto flex items-center justify-between text-[11px]">
           <div className="flex items-center gap-1.5 truncate">
             <Radio className="w-2.5 h-2.5 text-emerald-500 animate-pulse shrink-0" />
@@ -99,7 +99,7 @@ export const MeetingBanner = ({ onOpenHostModal, onOpenScheduleModal }) => {
   }
 
   return (
-    <div className="shrink-0 relative z-20 w-full bg-gradient-to-r from-orange-50 via-white to-amber-50/80 border-b border-orange-200/80 text-slate-800 px-3 sm:px-4 py-1.5 transition-all shadow-xs backdrop-blur-md">
+    <div data-tour="meeting-banner" className="shrink-0 relative z-20 w-full bg-gradient-to-r from-orange-50 via-white to-amber-50/80 border-b border-orange-200/80 text-slate-800 px-3 sm:px-4 py-1.5 transition-all shadow-xs backdrop-blur-md">
       <div className="max-w-[1700px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3 text-xs">
         
         {/* Left: Host Avatar & Info */}

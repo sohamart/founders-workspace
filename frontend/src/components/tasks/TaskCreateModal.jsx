@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { usePortal } from '../../context/PortalContext';
 import { X, Plus, Trash2, Link as LinkIcon, CheckSquare, Users, User, Copy, AlertCircle, ShieldAlert, Layers } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
@@ -111,9 +112,9 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
-      <div className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800">
+      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-xl sm:rounded-3xl flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         
         {/* Header */}
         <div className="p-4 md:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -466,6 +467,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
         </form>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

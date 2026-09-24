@@ -59,7 +59,7 @@ export const RulesBookView = () => {
     <div className="space-y-8 animate-fade-in max-w-5xl mx-auto pb-28 md:pb-12">
       
       {/* Official Charter Cover Header */}
-      <div className="p-6 md:p-10 rounded-3xl bg-white text-slate-800 border border-slate-200/90 shadow-xs relative overflow-hidden space-y-6">
+      <div data-tour="rules-charter" className="p-6 md:p-10 rounded-3xl bg-white text-slate-800 border border-slate-200/90 shadow-xs relative overflow-hidden space-y-6">
         {/* Top Badges */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 text-xs">
           <div className="flex items-center gap-2">

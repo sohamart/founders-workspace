@@ -46,6 +46,7 @@ export const MobileDock = ({ onOpenCreateTask, onOpenNewClient, onOpenScheduleMo
           
           {/* Tab 1: Home / Dashboard */}
           <button
+            data-tour="dock-home"
             onClick={() => handleTabClick('dashboard')}
             className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all ${
               currentTab === 'dashboard'
@@ -59,6 +60,7 @@ export const MobileDock = ({ onOpenCreateTask, onOpenNewClient, onOpenScheduleMo
 
           {/* Tab 2: Tasks */}
           <button
+            data-tour="dock-tasks"
             onClick={() => handleTabClick('tasks')}
             className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all ${
               currentTab === 'tasks'
@@ -72,7 +74,9 @@ export const MobileDock = ({ onOpenCreateTask, onOpenNewClient, onOpenScheduleMo
 
           {/* CENTER: Floating Premium Circle PLUS (+) Button */}
           <button
+            data-tour="action-create"
             onClick={() => {
+              sound.unlockAudio();
               sound.playPop();
               setShowActionSheet(true);
             }}
@@ -84,6 +88,7 @@ export const MobileDock = ({ onOpenCreateTask, onOpenNewClient, onOpenScheduleMo
 
           {/* Tab 3: Chat with Unread Badge */}
           <button
+            data-tour="dock-chat"
             onClick={() => handleTabClick('chat')}
             className={`relative flex flex-col items-center justify-center p-2 rounded-2xl transition-all ${
               currentTab === 'chat'
@@ -104,7 +109,9 @@ export const MobileDock = ({ onOpenCreateTask, onOpenNewClient, onOpenScheduleMo
 
           {/* Tab 4: More (•••) */}
           <button
+            data-tour="dock-more"
             onClick={() => {
+              sound.unlockAudio();
               sound.playPop();
               setShowMoreDrawer(true);
             }}

@@ -84,6 +84,7 @@ export const DesktopSidebar = () => {
           return (
             <button
               key={item.id}
+              data-tour={`nav-${item.id}`}
               onClick={() => handleTabClick(item.id)}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-medium transition-all group ${
                 isActive

@@ -51,13 +51,15 @@ exports.login = async (req, res) => {
     });
   }
 
-  // If Coming Soon is active and Admin has turned off bypass, only Super Admin can sign in
+  // If Coming Soon is active and Admin has turned off bypass, Super Admin and Founders with temporary onboarding passwords can sign in
   const settings = store.settings || {};
   if (settings.comingSoonActive !== false && settings.allowBypass === false && user.role !== 'superadmin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Portal is currently in Private Assembly. Founder access is administratively locked by Lead Admin.'
-    });
+    if (!user.mustChangePassword) {
+      return res.status(403).json({
+        success: false,
+        message: 'Portal is currently in Private Assembly. Founder access is administratively locked by Lead Admin.'
+      });
+    }
   }
 
   const token = generateToken(user);

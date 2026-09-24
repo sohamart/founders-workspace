@@ -1,118 +1,167 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { usePortal } from '../../context/PortalContext';
 import { 
   X, 
-  ArrowRight, 
   ArrowLeft, 
   Check, 
   Sparkles, 
-  Compass, 
   Radio, 
   CheckSquare, 
   Briefcase, 
-  ShieldCheck, 
   Calendar, 
-  FileText,
-  Zap,
-  Users
+  BookOpen, 
+  Volume2, 
+  ShieldCheck,
+  Zap
 } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
 
 const TOUR_STEPS = [
   {
-    id: 'welcome',
-    title: 'Welcome to Founders Workspace',
-    subtitle: 'Weblets® × StackAdda™ Executive Operating System',
-    icon: Sparkles,
-    badgeColor: 'from-orange-500 to-amber-500',
-    description: 'This is the unified operating environment for founders. Everything from client delivery and sprint tasks to emergency broadcasts and constitutional rules is managed here with zero excuses.',
-    highlights: [
-      'Dual Brand Architecture: Weblets® Client Accounts & StackAdda™ Internal Initiatives.',
-      'Strict Rule Enforcement: Automated watchdog strikes and deadline tracking.',
-      'Realtime WebSocket Synchronization across all active founders.'
-    ]
+    id: 'brand',
+    tab: 'dashboard',
+    targets: ['[data-tour="brand-logo"]'],
+    title: 'Weblets® × StackAdda™ Hub',
+    desc: 'Unified ecosystem combining client deliverables (Weblets) & internal tooling (StackAdda).',
+    icon: Sparkles
   },
   {
     id: 'banner',
-    title: 'Live Workspace Banner & Broadcasts',
-    subtitle: 'Always On Top • Zero Missed Agendas',
-    icon: Radio,
-    badgeColor: 'from-red-500 to-orange-500',
-    description: 'The top workspace banner highlights the earliest upcoming meeting call or urgent admin emergency directive in realtime.',
-    highlights: [
-      'Earliest upcoming meeting is automatically queued to the banner.',
-      'Direct one-click Google Meet / Zoom launch.',
-      'Instant RSVP attendance confirmation toggle.'
-    ]
+    tab: 'dashboard',
+    targets: ['[data-tour="meeting-banner"]', '[data-tour="dashboard-hero"]'],
+    title: 'Strategic Meeting Radar',
+    desc: 'Persistent live broadcast for upcoming strategy calls, RSVP attendance & urgent directives.',
+    icon: Radio
+  },
+  {
+    id: 'kpis',
+    tab: 'dashboard',
+    targets: ['[data-tour="dashboard-kpis"]', '[data-tour="dashboard-hero"]'],
+    title: 'Executive Velocity Radar',
+    desc: 'Real-time counters for active sprint tasks, client projects, scheduled syncs & strikes.',
+    icon: Zap
   },
   {
     id: 'tasks',
-    title: 'Tasks Radar & Blocker Flagging',
-    subtitle: 'Sprint Milestones, Progress Proofs & Rule 08',
-    icon: CheckSquare,
-    badgeColor: 'from-blue-600 to-cyan-600',
-    description: 'Track urgent deliverables, daily sprint updates, and escalate technical roadblocks immediately.',
-    highlights: [
-      'Submit progress verification proofs with URLs or file attachments.',
-      'Flag active blockers (Rule 08) for immediate team assistance.',
-      'Request deadline extensions with verified justification before expiry.'
-    ]
+    tab: 'tasks',
+    targets: ['[data-tour="tasks-radar-header"]', '[data-tour="dock-tasks"]', '[data-tour="nav-tasks"]'],
+    title: 'Tasks & Sprints Kanban',
+    desc: 'Track daily deliverables, submit proof links/files, and flag active technical blockers.',
+    icon: CheckSquare
   },
   {
     id: 'projects',
-    title: 'Client Web Projects & Dynamic Pipelines',
-    subtitle: 'Wireframing, Frontend, Backend & QA Handover',
-    icon: Briefcase,
-    badgeColor: 'from-amber-600 to-orange-600',
-    description: 'End-to-end delivery tracking for external client accounts and internal brand tooling with staging URLs.',
-    highlights: [
-      '4-Phase Dynamic dev pipelines with custom stage additions.',
-      'Encrypted client credential vault with Super Admin access verification.',
-      'Milestone payment tracking and technical launch checklists.'
-    ]
-  },
-  {
-    id: 'requests',
-    title: 'Requests & Governance Hub',
-    subtitle: 'Rule 04 & 06 Operational Oversight Center',
-    icon: ShieldCheck,
-    badgeColor: 'from-emerald-600 to-teal-600',
-    description: 'All founder project initialization proposals, task creation approvals, deadline extensions, and transfer handovers are reviewed here.',
-    highlights: [
-      'Rule 04 Compliance: Founder-created projects require Super Admin sign-off before entering active dev.',
-      'One-click approval and rejection with audit logging.',
-      'Full chronological decision log.'
-    ]
+    tab: 'projects',
+    targets: ['[data-tour="projects-hub"]', '[data-tour="nav-projects"]'],
+    title: 'Client Web Projects & Vault',
+    desc: 'Manage staging environments, dev pipelines & encrypted client credentials.',
+    icon: Briefcase
   },
   {
     id: 'meetings',
-    title: 'Meetings & Sync Radar',
-    subtitle: 'Chronological Multi-Meeting Queue & Host Ownership',
-    icon: Calendar,
-    badgeColor: 'from-indigo-600 to-purple-600',
-    description: 'Schedule strategy syncs directly on the Meetings page. The earliest upcoming call automatically broadcasts to the live banner.',
-    highlights: [
-      'Founders can schedule directly with host locked to their account.',
-      'Super Admin can schedule or delegate host responsibility with deadlines.',
-      'Admin-assigned meetings cannot be cancelled by founders (Rule 06).'
-    ]
+    tab: 'meetings',
+    targets: ['[data-tour="meetings-radar"]', '[data-tour="nav-meetings"]'],
+    title: 'Meetings & Sync Queue',
+    desc: 'Schedule strategy syncs chronologically with host delegation and Google Meet launch.',
+    icon: Calendar
   },
   {
-    id: 'charter',
-    title: '30 Constitutional Rules Charter',
-    subtitle: 'Inviolable Principles & Digital Canvas Ratification',
-    icon: FileText,
-    badgeColor: 'from-slate-800 to-slate-950',
-    description: 'The foundation of Weblets® × StackAdda™. Every founder signs the charter with a digital pen canvas that computes a cryptographic verification hash.',
-    highlights: [
-      '30 rules divided into 6 operational chapters.',
-      'Interactive digital signature pad with SHA verification fingerprint.',
-      'Strict 2-strike system: 2 strikes result in automatic account suspension.'
-    ]
+    id: 'rules',
+    tab: 'rules',
+    targets: ['[data-tour="rules-charter"]', '[data-tour="nav-rules"]'],
+    title: '30 Strict Rules Charter',
+    desc: 'Constitutional agreements signed with cryptographic digital SHA pen verification.',
+    icon: BookOpen
+  },
+  {
+    id: 'sound',
+    tab: 'dashboard',
+    targets: ['[data-tour="header-sound"]'],
+    title: 'Web Audio Soundscapes',
+    desc: 'Synthesized zero-latency sound effects for chats, approvals, tasks & notifications.',
+    icon: Volume2
+  },
+  {
+    id: 'profile',
+    tab: 'dashboard',
+    targets: ['[data-tour="header-profile"]'],
+    title: 'Executive Profile & Settings',
+    desc: 'Upload Cloudinary avatar, manage designations, inspect compliance & sign out.',
+    icon: ShieldCheck
   }
 ];
 
 export const WorkspaceTourModal = ({ isOpen, onClose }) => {
+  const { currentTab, setCurrentTab } = usePortal();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState(null);
+
+  const step = TOUR_STEPS[currentStepIndex];
+
+  // Robust selector that finds the VISIBLE element (ignoring hidden mobile/desktop duplicates)
+  const findVisibleTarget = useCallback((selectors) => {
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const el of elements) {
+        const b = el.getBoundingClientRect();
+        if (b.width > 0 && b.height > 0) {
+          const style = window.getComputedStyle(el);
+          if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+            return { element: el, rect: b };
+          }
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  const measureTarget = useCallback(() => {
+    if (!isOpen) return;
+    const currentStep = TOUR_STEPS[currentStepIndex];
+    if (!currentStep) return;
+
+    const match = findVisibleTarget(currentStep.targets);
+    if (match) {
+      match.element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      const b = match.element.getBoundingClientRect();
+      setTargetRect({
+        top: b.top,
+        left: b.left,
+        width: b.width,
+        height: b.height,
+        bottom: b.bottom,
+        right: b.right
+      });
+    } else {
+      setTargetRect(null);
+    }
+  }, [isOpen, currentStepIndex, findVisibleTarget]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    sound.unlockAudio();
+    const currentStep = TOUR_STEPS[currentStepIndex];
+    if (currentStep?.tab && currentTab !== currentStep.tab) {
+      setCurrentTab(currentStep.tab);
+    }
+
+    measureTarget();
+    const t1 = setTimeout(measureTarget, 140);
+    const t2 = setTimeout(measureTarget, 380);
+
+    const onResizeOrScroll = () => measureTarget();
+    window.addEventListener('resize', onResizeOrScroll, { passive: true });
+    window.addEventListener('scroll', onResizeOrScroll, { passive: true, capture: true });
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', onResizeOrScroll);
+      window.removeEventListener('scroll', onResizeOrScroll, true);
+    };
+  }, [isOpen, currentStepIndex, currentTab, setCurrentTab, measureTarget]);
 
   useEffect(() => {
     if (isOpen) {
@@ -122,12 +171,12 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const step = TOUR_STEPS[currentStepIndex];
   const StepIcon = step.icon;
   const isFirst = currentStepIndex === 0;
   const isLast = currentStepIndex === TOUR_STEPS.length - 1;
 
   const handleNext = () => {
+    sound.unlockAudio();
     sound.playPop();
     if (isLast) {
       handleComplete();
@@ -137,6 +186,7 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
   };
 
   const handlePrev = () => {
+    sound.unlockAudio();
     sound.playPop();
     if (!isFirst) {
       setCurrentStepIndex(prev => prev - 1);
@@ -144,118 +194,223 @@ export const WorkspaceTourModal = ({ isOpen, onClose }) => {
   };
 
   const handleComplete = () => {
-    sound.playChime();
+    sound.unlockAudio();
+    sound.playSuccess();
     localStorage.setItem('founders_tour_completed', 'true');
+    setCurrentTab('dashboard');
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-md animate-fade-in text-slate-800 select-none">
-      <div className="relative bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 overflow-hidden flex flex-col space-y-6">
-        
-        {/* Ambient Top Glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+  const padding = 8;
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
+  const cardWidth = typeof window !== 'undefined' ? Math.min(380, window.innerWidth - 32) : 380;
+  const cardHeight = 150;
 
-        {/* Header Bar */}
-        <div className="flex items-center justify-between relative z-10">
+  // SMART VIEWPORT CLAMPING: Card NEVER hangs off screen boundaries!
+  let popoverStyle = {};
+  if (!targetRect) {
+    popoverStyle = {
+      position: 'fixed',
+      bottom: isMobile ? 84 : 28,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: cardWidth,
+      zIndex: 99995
+    };
+  } else {
+    const spaceBelow = window.innerHeight - targetRect.bottom;
+    const spaceAbove = targetRect.top;
+
+    if (isMobile) {
+      if (spaceBelow > cardHeight + 40 && targetRect.bottom < window.innerHeight - 200) {
+        popoverStyle = {
+          position: 'fixed',
+          top: Math.min(window.innerHeight - cardHeight - 84, targetRect.bottom + 12),
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: cardWidth,
+          zIndex: 99995
+        };
+      } else {
+        popoverStyle = {
+          position: 'fixed',
+          bottom: 84, // Safely above MobileDock
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: cardWidth,
+          zIndex: 99995
+        };
+      }
+    } else {
+      // Desktop: Clamped top position so it never overflows bottom of screen
+      let topPos;
+      if (targetRect.height > 320 || spaceBelow < cardHeight + 24) {
+        if (spaceAbove > cardHeight + 24) {
+          topPos = Math.max(16, targetRect.top - cardHeight - 12);
+        } else {
+          topPos = Math.max(16, window.innerHeight - cardHeight - 24);
+        }
+      } else {
+        topPos = targetRect.bottom + 12;
+      }
+
+      // Hard clamp within viewport boundaries
+      topPos = Math.max(16, Math.min(window.innerHeight - cardHeight - 20, topPos));
+
+      let leftPos = targetRect.left + targetRect.width / 2 - cardWidth / 2;
+      leftPos = Math.max(16, Math.min(window.innerWidth - cardWidth - 16, leftPos));
+
+      popoverStyle = {
+        position: 'fixed',
+        top: topPos,
+        left: leftPos,
+        width: cardWidth,
+        zIndex: 99995
+      };
+    }
+  }
+
+  const tourContent = (
+    <div className="fixed inset-0 z-[99990] select-none">
+      
+      {/* 1. TRUE SVG CUTOUT MASK: 100% CLEAR, UN-DIMMED HOLE OVER FOCUSED TARGET */}
+      <svg 
+        className="fixed inset-0 w-full h-full z-[99990] transition-opacity duration-300 pointer-events-auto"
+        onClick={handleComplete}
+      >
+        <defs>
+          <mask id={`spotlight-mask-step-${currentStepIndex}`}>
+            {/* White fills entire screen with dark overlay */}
+            <rect width="100%" height="100%" fill="white" />
+            {/* Black cuts out an exact 100% transparent crystal-clear window over targetRect */}
+            {targetRect && (
+              <rect
+                x={Math.max(0, targetRect.left - padding)}
+                y={Math.max(0, targetRect.top - padding)}
+                width={targetRect.width + padding * 2}
+                height={targetRect.height + padding * 2}
+                rx="16"
+                ry="16"
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          fill="rgba(15, 23, 42, 0.78)"
+          mask={targetRect ? `url(#spotlight-mask-step-${currentStepIndex})` : undefined}
+          className="cursor-pointer"
+        />
+      </svg>
+
+      {/* 2. GLOWING AMBER PULSE RING OVER TARGET ELEMENT */}
+      {targetRect && (
+        <div
+          style={{
+            position: 'fixed',
+            top: Math.max(0, targetRect.top - padding),
+            left: Math.max(0, targetRect.left - padding),
+            width: targetRect.width + padding * 2,
+            height: targetRect.height + padding * 2,
+            zIndex: 99992,
+            transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+          className="pointer-events-none rounded-2xl ring-4 ring-orange-500 shadow-[0_0_35px_rgba(249,115,22,0.8),inset_0_0_15px_rgba(255,255,255,0.15)] animate-pulse"
+        >
+          {/* Tactical crosshair corners */}
+          <span className="absolute -top-1.5 -left-1.5 w-4 h-4 border-t-2 border-l-2 border-white rounded-tl" />
+          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 border-t-2 border-r-2 border-white rounded-tr" />
+          <span className="absolute -bottom-1.5 -left-1.5 w-4 h-4 border-b-2 border-l-2 border-white rounded-bl" />
+          <span className="absolute -bottom-1.5 -right-1.5 w-4 h-4 border-b-2 border-r-2 border-white rounded-br" />
+        </div>
+      )}
+
+      {/* 3. COMPACT & MINIMAL INFORMATION CARD (Clamped, never overflows screen) */}
+      <div 
+        style={popoverStyle}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-orange-200/90 text-slate-800 animate-fade-in flex flex-col justify-between transition-all duration-300 ease-out pointer-events-auto"
+      >
+        {/* Header: Step Badge + Title + Close */}
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold font-mono">
-              Step {currentStepIndex + 1} of {TOUR_STEPS.length}
+            <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-orange-600 to-amber-600 text-white text-[10px] font-bold font-mono tracking-wider shadow-xs">
+              {currentStepIndex + 1}/{TOUR_STEPS.length}
             </span>
-            <span className="text-xs text-slate-400 font-semibold">• Workspace Interactive Tour</span>
+            <div className="flex items-center gap-1.5">
+              <StepIcon className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate max-w-[210px] sm:max-w-[240px]">
+                {step.title}
+              </h3>
+            </div>
           </div>
 
           <button
             onClick={handleComplete}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Skip Tour"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Exit Tour"
           >
-            <X className="w-5 h-5" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Step Visual Banner & Icon */}
-        <div className="relative z-10 flex items-start gap-4">
-          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${step.badgeColor} text-white flex items-center justify-center shadow-lg shrink-0`}>
-            <StepIcon className="w-7 h-7" />
-          </div>
-
-          <div className="space-y-1">
-            <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-snug">
-              {step.title}
-            </h3>
-            <p className="text-xs font-semibold text-orange-600 font-mono">
-              {step.subtitle}
-            </p>
-          </div>
-        </div>
-
-        {/* Step Description */}
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed relative z-10">
-          {step.description}
+        {/* Minimal Description (1 concise sentence) */}
+        <p className="text-[11px] sm:text-xs text-slate-600 leading-snug py-2">
+          {step.desc}
         </p>
 
-        {/* Bullet Highlights Card */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 relative z-10">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Key Highlights:
-          </div>
-          <div className="space-y-2">
-            {step.highlights.map((h, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-700 font-medium">
-                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span>{h}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer Navigation Bar */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100 relative z-10">
-          {/* Progress Dots */}
-          <div className="flex items-center gap-1.5">
+        {/* Compact Footer Controls */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          {/* Dot progress */}
+          <div className="flex items-center gap-1">
             {TOUR_STEPS.map((s, idx) => (
               <button
                 key={s.id}
                 onClick={() => {
+                  sound.unlockAudio();
                   sound.playPop();
                   setCurrentStepIndex(idx);
                 }}
-                className={`h-2 rounded-full transition-all cursor-pointer ${
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
                   idx === currentStepIndex 
-                    ? 'w-6 bg-orange-600' 
-                    : 'w-2 bg-slate-200 hover:bg-slate-300'
+                    ? 'w-4 bg-orange-600' 
+                    : 'w-1.5 bg-slate-200 hover:bg-slate-300'
                 }`}
-                title={`Go to step ${idx + 1}`}
+                title={`Go to ${s.title}`}
               />
             ))}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Action buttons */}
+          <div className="flex items-center gap-1.5">
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-0.5 cursor-pointer"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3 h-3" />
                 <span>Back</span>
               </button>
             )}
 
             <button
               onClick={handleNext}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[11px] shadow-sm shadow-orange-600/20 hover:shadow-md transition-all flex items-center gap-1 cursor-pointer"
             >
-              <span>{isLast ? 'Complete Tour & Enter' : 'Next Step'}</span>
-              {isLast ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+              <span>{isLast ? 'Done 🚀' : 'Next →'}</span>
+              {isLast ? <Check className="w-3 h-3" /> : null}
             </button>
           </div>
         </div>
 
       </div>
+
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(tourContent, document.body) : null;
 };
 
 export default WorkspaceTourModal;

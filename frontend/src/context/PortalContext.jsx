@@ -18,8 +18,18 @@ export const PortalProvider = ({ children }) => {
       const saved = localStorage.getItem('founders_user');
       const u = saved ? JSON.parse(saved) : null;
       if (u && u.role === 'superadmin') return true;
+      const cached = localStorage.getItem('founders_portal_settings');
+      if (cached) {
+        const s = JSON.parse(cached);
+        if (s.comingSoonActive === false) return true;
+        if (s.allowBypass !== false && localStorage.getItem('founders_bypassed') === 'true') return true;
+        return false;
+      }
     } catch (e) {}
-    return false;
+    return true; // Default true during initial boot check so Coming Soon never flickers
+  });
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(() => {
+    return !!localStorage.getItem('founders_portal_settings');
   });
   const [isSuspended, setIsSuspended] = useState(false);
   const [mustOnboard, setMustOnboard] = useState(false);
@@ -68,11 +78,17 @@ export const PortalProvider = ({ children }) => {
   const [isMuted, setIsMuted] = useState(sound.isMuted);
 
   // Portal Gateway & Launch Settings
-  const [portalSettings, setPortalSettings] = useState({
-    comingSoonActive: true,
-    allowBypass: true,
-    targetLaunchDate: '2026-10-01T00:00:00.000Z',
-    bypassPasscode: 'FOUNDER2026'
+  const [portalSettings, setPortalSettings] = useState(() => {
+    try {
+      const cached = localStorage.getItem('founders_portal_settings');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {
+      comingSoonActive: false,
+      allowBypass: true,
+      targetLaunchDate: '2026-10-01T00:00:00.000Z',
+      bypassPasscode: 'FOUNDER2026'
+    };
   });
 
   // Core Data state
@@ -384,8 +400,8 @@ export const PortalProvider = ({ children }) => {
       }
 
       // Fetch founders list if admin or user
-      const foundersRes = await apiClient.get('/admin/founders').catch(() => ({ data: { founders: [] } }));
-      if (foundersRes.data && foundersRes.data.founders) {
+      const foundersRes = await apiClient.get('/admin/founders').catch(() => null);
+      if (foundersRes && foundersRes.data && Array.isArray(foundersRes.data.founders)) {
         setFounders(foundersRes.data.founders);
         if (user) {
           const freshSelf = foundersRes.data.founders.find(f => f.id === user.id);
@@ -463,11 +479,16 @@ export const PortalProvider = ({ children }) => {
       if (res.data && res.data.settings) {
         const s = res.data.settings;
         setPortalSettings(s);
+        try {
+          localStorage.setItem('founders_portal_settings', JSON.stringify(s));
+        } catch (err) {}
         const shouldBypass = evaluateBypass(s, currentUserRef.current);
         setIsBypassed(shouldBypass);
       }
     } catch (e) {
       console.warn('Failed to load portal settings:', e);
+    } finally {
+      setIsSettingsLoaded(true);
     }
   }, [evaluateBypass]);
 
@@ -522,11 +543,15 @@ export const PortalProvider = ({ children }) => {
 
   useEffect(() => {
     let socketUrl = '';
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const isLocalNetwork = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1' ||
+       window.location.hostname.startsWith('192.168.') ||
+       window.location.hostname.startsWith('10.') ||
+       /^172\.(1[6-9]|2\d|3[01])\./.test(window.location.hostname));
 
-    if (isLocalhost) {
-      socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    if (isLocalNetwork) {
+      socketUrl = `http://${window.location.hostname}:5000`;
     } else {
       // Live production environment (e.g. founderwork.weblets.bond)
       // Must connect to Render backend unless a non-localhost custom socket URL is explicitly given
@@ -770,6 +795,9 @@ export const PortalProvider = ({ children }) => {
       if (res.data && res.data.success) {
         const updated = res.data.settings;
         setPortalSettings(updated);
+        try {
+          localStorage.setItem('founders_portal_settings', JSON.stringify(updated));
+        } catch (err) {}
         const shouldBypass = evaluateBypass(updated, currentUserRef.current);
         setIsBypassed(shouldBypass);
         showToast('Settings Saved', 'Portal Gateway access controls updated.', 'success');
@@ -1403,6 +1431,11 @@ export const PortalProvider = ({ children }) => {
   const toggleMuteSound = () => {
     const muted = sound.toggleMute();
     setIsMuted(muted);
+    showToast(
+      muted ? '🔇 Sound Muted' : '🔊 Sound Active',
+      muted ? 'Sound effects disabled.' : 'Sound effects enabled.',
+      'info'
+    );
     return muted;
   };
 
@@ -1472,6 +1505,7 @@ export const PortalProvider = ({ children }) => {
         isSuspended,
         mustOnboard,
         isBypassed,
+        isSettingsLoaded,
         currentTab,
         setCurrentTab,
         isLoading,

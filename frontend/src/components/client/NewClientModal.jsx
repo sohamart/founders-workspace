@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePortal } from '../../context/PortalContext';
 import { X, Briefcase, Sparkles, Globe, DollarSign, User, ShieldCheck, Layers } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
@@ -47,9 +48,9 @@ export const NewClientModal = ({ onClose }) => {
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[94vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800">
+      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-3xl flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/60">
@@ -267,7 +268,8 @@ export const NewClientModal = ({ onClose }) => {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

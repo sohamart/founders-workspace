@@ -10,31 +10,54 @@ class SoundFX {
     if (typeof window !== 'undefined') {
       const unlockAudio = () => {
         this.hasUserInteracted = true;
-        if (this.audioCtx && this.audioCtx.state === 'suspended') {
-          this.audioCtx.resume().catch(() => {});
-        }
-        ['click', 'touchstart', 'keydown'].forEach(evt => {
+        this.unlockAudio();
+        const events = ['click', 'touchstart', 'touchend', 'keydown', 'pointerdown'];
+        events.forEach(evt => {
           window.removeEventListener(evt, unlockAudio);
+          document.removeEventListener(evt, unlockAudio);
         });
       };
 
-      ['click', 'touchstart', 'keydown'].forEach(evt => {
+      const events = ['click', 'touchstart', 'touchend', 'keydown', 'pointerdown'];
+      events.forEach(evt => {
         window.addEventListener(evt, unlockAudio, { passive: true });
+        document.addEventListener(evt, unlockAudio, { passive: true });
       });
+    }
+  }
+
+  // Explicit audio unlock for mobile browsers (iOS Safari, Android Chrome)
+  unlockAudio() {
+    this.hasUserInteracted = true;
+    try {
+      if (!this.audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          this.audioCtx = new AudioContextClass();
+        }
+      }
+
+      if (this.audioCtx && this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+
+      if (this.audioCtx) {
+        // Play a 1-sample silent buffer to unlock the audio hardware on iOS / Android
+        const buffer = this.audioCtx.createBuffer(1, 1, 22050);
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioCtx.destination);
+        source.start(0);
+      }
+      return this.audioCtx;
+    } catch (e) {
+      return null;
     }
   }
 
   // Safely get or resume AudioContext only when allowed by browser policy
   getSafeAudioContext() {
     if (typeof window === 'undefined') return null;
-
-    // Check if user has interacted or if browser has user activation
-    const canPlay = this.hasUserInteracted || 
-      (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.hasBeenActive);
-
-    if (!canPlay && !this.audioCtx) {
-      return null;
-    }
 
     try {
       if (!this.audioCtx) {
@@ -44,11 +67,7 @@ class SoundFX {
       }
 
       if (this.audioCtx.state === 'suspended') {
-        if (canPlay) {
-          this.audioCtx.resume().catch(() => {});
-        } else {
-          return null;
-        }
+        this.audioCtx.resume().catch(() => {});
       }
 
       return this.audioCtx;
@@ -60,9 +79,14 @@ class SoundFX {
   toggleMute() {
     this.isMuted = !this.isMuted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('founders_sound_muted', this.isMuted ? 'true' : 'false');
+      try {
+        localStorage.setItem('founders_sound_muted', this.isMuted ? 'true' : 'false');
+      } catch (e) {}
     }
-    if (!this.isMuted) this.playPop();
+    if (!this.isMuted) {
+      this.unlockAudio();
+      this.playSuccess();
+    }
     return this.isMuted;
   }
 
@@ -74,14 +98,14 @@ class SoundFX {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(520, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.08);
+      osc.stop(ctx.currentTime + 0.1);
     } catch (e) {}
   }
 
@@ -92,15 +116,15 @@ class SoundFX {
       if (!ctx) return;
       // High-clarity 2-tone notification ping
       const tones = [
-        { freq: 587.33, delay: 0, dur: 0.1 },      // D5
-        { freq: 880.00, delay: 0.08, dur: 0.22 }   // A5
+        { freq: 587.33, delay: 0, dur: 0.12 },     // D5
+        { freq: 880.00, delay: 0.09, dur: 0.25 }  // A5
       ];
       tones.forEach(t => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(t.freq, ctx.currentTime + t.delay);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime + t.delay);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime + t.delay);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t.delay + t.dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -121,13 +145,13 @@ class SoundFX {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.07);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime + idx * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.07 + 0.25);
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.28);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + idx * 0.07);
-        osc.stop(ctx.currentTime + idx * 0.07 + 0.25);
+        osc.start(ctx.currentTime + idx * 0.08);
+        osc.stop(ctx.currentTime + idx * 0.08 + 0.28);
       });
     } catch (e) {}
   }
@@ -142,13 +166,13 @@ class SoundFX {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.06);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime + idx * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.06 + 0.3);
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.07);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime + idx * 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.07 + 0.32);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + idx * 0.06);
-        osc.stop(ctx.currentTime + idx * 0.06 + 0.3);
+        osc.start(ctx.currentTime + idx * 0.07);
+        osc.stop(ctx.currentTime + idx * 0.07 + 0.32);
       });
     } catch (e) {}
   }
@@ -164,7 +188,7 @@ class SoundFX {
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.15);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.15);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime + idx * 0.15);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + idx * 0.15 + 0.2);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -191,7 +215,7 @@ class SoundFX {
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(p.freq, ctx.currentTime + p.start);
-        gain.gain.setValueAtTime(0.22, ctx.currentTime + p.start);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + p.start);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + p.start + p.dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -203,4 +227,3 @@ class SoundFX {
 }
 
 export const sound = new SoundFX();
-

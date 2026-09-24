@@ -207,7 +207,7 @@ export const TaskListView = ({ onSelectTask, onOpenCreateModal }) => {
       )}
 
       {/* Top Controls & Filter Bar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white p-4 md:p-5 rounded-3xl border border-slate-200/90 shadow-sm backdrop-blur-md">
+      <div data-tour="tasks-radar-header" className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white p-4 md:p-5 rounded-3xl border border-slate-200/90 shadow-sm backdrop-blur-md">
         
         {/* Search & Project Selector */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-2xl">

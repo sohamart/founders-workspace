@@ -1,18 +1,29 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-  let url = (import.meta.env.VITE_API_URL || '').trim();
-  if (!url) {
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      return 'http://localhost:5000/api';
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If running in development (localhost, 127.0.0.1, or local LAN IP like 192.168.x.x, 10.x.x.x, 172.x.x.x)
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+    ) {
+      return `http://${hostname}:5000/api`;
     }
-    return 'https://founders-workspace.onrender.com/api';
   }
-  url = url.replace(/\/$/, '');
-  if (!url.endsWith('/api')) {
-    url = `${url}/api`;
+
+  let url = (import.meta.env.VITE_API_URL || '').trim();
+  if (url) {
+    url = url.replace(/\/$/, '');
+    if (!url.endsWith('/api')) {
+      url = `${url}/api`;
+    }
+    return url;
   }
-  return url;
+  return 'https://founders-workspace.onrender.com/api';
 };
 
 const apiClient = axios.create({

@@ -36,6 +36,7 @@ import 'react-toastify/dist/ReactToastify.css';
 const MainPortal = () => {
   const { 
     isBypassed, 
+    isSettingsLoaded,
     isAuthenticated, 
     isSuspended, 
     mustOnboard,
@@ -57,7 +58,7 @@ const MainPortal = () => {
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isMeetingHostMode, setIsMeetingHostMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSplashScreen, setShowSplashScreen] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [showTour, setShowTour] = useState(false);
 
   // Auto-launch interactive tour on very first visit
@@ -68,6 +69,11 @@ const MainPortal = () => {
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, mustOnboard, isSuspended]);
+
+  // Gate 0: Wait for initial settings check so Coming Soon never flickers on boot
+  if (!isSettingsLoaded) {
+    return null;
+  }
 
   // 1. Gate 1: Coming Soon Gateway with Passcode / Admin Bypass
   if (!isBypassed) {
@@ -106,7 +112,7 @@ const MainPortal = () => {
         {/* Main Top Header Bar (Natural top navigation) */}
         <HeaderBar 
           onOpenNotifications={() => setShowNotifications(true)} 
-          onStartTour={() => setShowTour(true)}
+          onStartTour={() => setShowTour(prev => !prev)}
         />
 
         {/* Sleek Strategic Meeting Banner (if scheduled) */}
@@ -255,9 +261,9 @@ const MainPortal = () => {
         onClose={() => setShowTour(false)}
       />
 
-      {/* Modern Animated Splash Screen on Boot */}
-      {showSplashScreen && (
-        <SplashScreen onFinish={() => setShowSplashScreen(false)} />
+      {/* Luxury Minimalist Boot Splash Screen */}
+      {showSplash && (
+        <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePortal } from '../../context/PortalContext';
 import { 
   X, 
@@ -156,9 +157,9 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-slate-800">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[94vh] sm:max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800">
+      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-3xl flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         
         {/* Header Bar */}
         <div className="p-3.5 sm:p-5 md:p-6 border-b border-slate-100 flex items-start justify-between gap-3 bg-slate-50/70">
@@ -762,6 +763,7 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

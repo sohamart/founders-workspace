@@ -106,7 +106,7 @@ export const MeetingsView = () => {
     <div className="space-y-6 animate-fade-in w-full max-w-[1700px] mx-auto pb-28 md:pb-16 text-slate-800">
       
       {/* Top Header Card */}
-      <div className="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 md:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm backdrop-blur-md">
+      <div data-tour="meetings-radar" className="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 md:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm backdrop-blur-md">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse" />
