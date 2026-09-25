@@ -28,9 +28,7 @@ export const PortalProvider = ({ children }) => {
     } catch (e) {}
     return true; // Default true during initial boot check so Coming Soon never flickers
   });
-  const [isSettingsLoaded, setIsSettingsLoaded] = useState(() => {
-    return !!localStorage.getItem('founders_portal_settings');
-  });
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
   const [mustOnboard, setMustOnboard] = useState(false);
 
@@ -117,6 +115,11 @@ export const PortalProvider = ({ children }) => {
   const toastedNotifIdsRef = useRef(new Set());
   const currentUserRef = useRef(currentUser);
   const currentTabRef = useRef(currentTab);
+  const portalSettingsRef = useRef(portalSettings);
+
+  useEffect(() => {
+    portalSettingsRef.current = portalSettings;
+  }, [portalSettings]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -487,24 +490,28 @@ export const PortalProvider = ({ children }) => {
       const res = await apiClient.get('/admin/settings');
       if (res.data && res.data.settings) {
         const s = res.data.settings;
+        portalSettingsRef.current = s;
         setPortalSettings(s);
         try {
           localStorage.setItem('founders_portal_settings', JSON.stringify(s));
         } catch (err) {}
         const shouldBypass = evaluateBypass(s, currentUserRef.current);
         setIsBypassed(shouldBypass);
+        return s;
       }
     } catch (e) {
       console.warn('Failed to load portal settings:', e);
     } finally {
       setIsSettingsLoaded(true);
     }
+    return null;
   }, [evaluateBypass]);
 
   // Check current user session on boot
   useEffect(() => {
     const initAuth = async () => {
-      await fetchPortalSettings();
+      const freshSettings = await fetchPortalSettings();
+      const effectiveSettings = freshSettings || portalSettingsRef.current || portalSettings;
       const storedToken = localStorage.getItem('founders_token');
       if (storedToken) {
         try {
@@ -523,7 +530,7 @@ export const PortalProvider = ({ children }) => {
             localStorage.setItem('founders_user', JSON.stringify(finalUser));
             setIsSuspended(finalUser.status === 'suspended');
             setMustOnboard(finalUser.mustChangePassword);
-            setIsBypassed(evaluateBypass(portalSettings, finalUser));
+            setIsBypassed(evaluateBypass(effectiveSettings, finalUser));
           }
         } catch (e) {
           // Token invalid or suspended
@@ -531,6 +538,8 @@ export const PortalProvider = ({ children }) => {
             setIsSuspended(true);
           }
         }
+      } else {
+        setIsBypassed(evaluateBypass(effectiveSettings, null));
       }
       refreshData();
     };
@@ -763,6 +772,7 @@ export const PortalProvider = ({ children }) => {
     ? (
         tasks.filter(t => t.status === 'pending_approval' || t.approvalStatus === 'pending').length +
         tasks.filter(t => t.status === 'review_pending').length +
+        tasks.filter(t => t.transferRequests && t.transferRequests.some(tr => tr.status === 'founder_accepted')).length +
         clientProjects.flatMap(p => p.credentials || []).filter(c => c.status === 'pending_approval').length +
         clientProjects.filter(p => p.status === 'pending_approval' || p.approvalStatus === 'pending').length
       )
@@ -771,6 +781,7 @@ export const PortalProvider = ({ children }) => {
           (t.requesterId === currentUser?.id || (Array.isArray(t.assignedTo) && t.assignedTo.includes(currentUser?.id))) && 
           (t.status === 'pending_approval' || t.approvalStatus === 'pending')
         ).length +
+        tasks.filter(t => t.transferRequests && t.transferRequests.some(tr => tr.toUserId === currentUser?.id && tr.status === 'pending')).length +
         clientProjects.filter(p => p.requestedBy === currentUser?.id && (p.status === 'pending_approval' || p.approvalStatus === 'pending')).length
       );
 
@@ -1082,6 +1093,92 @@ export const PortalProvider = ({ children }) => {
       }
     } catch (err) {
       showToast('Error', err.response?.data?.message || 'Failed to respond to transfer.', 'error');
+      return { success: false };
+    }
+  };
+
+  const adminReviewTransfer = async (taskId, transferId, decision, note) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/transfer-admin-review`, {
+        transferId,
+        decision,
+        note
+      });
+      if (res.data.success) {
+        sound.playChime();
+        showToast(
+          decision === 'approve' ? 'Transfer Ratified' : 'Transfer Rejected',
+          res.data.message,
+          decision === 'approve' ? 'success' : 'warning'
+        );
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to review transfer.', 'error');
+      return { success: false };
+    }
+  };
+
+  const adminDirectTransfer = async (taskId, targetFounderId, note) => {
+    try {
+      const res = await apiClient.post(`/tasks/${taskId}/admin-transfer`, {
+        targetFounderId,
+        note
+      });
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Task Reassigned', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Transfer Error', err.response?.data?.message || 'Failed to reassign task.', 'error');
+      return { success: false };
+    }
+  };
+
+  const adminUpdateTaskStatus = async (taskId, status) => {
+    try {
+      const res = await apiClient.patch(`/tasks/${taskId}/admin-status`, { status });
+      if (res.data.success) {
+        sound.playPop();
+        showToast('Status Updated', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Status Error', err.response?.data?.message || 'Failed to update status.', 'error');
+      return { success: false };
+    }
+  };
+
+  const updateTask = async (taskId, updateData) => {
+    try {
+      const res = await apiClient.put(`/tasks/${taskId}`, updateData);
+      if (res.data.success) {
+        sound.playPop();
+        showToast('Task Updated', res.data.message, 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Update Error', err.response?.data?.message || 'Failed to update task.', 'error');
+      return { success: false };
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    try {
+      const res = await apiClient.delete(`/tasks/${taskId}`);
+      if (res.data.success) {
+        sound.playWarning();
+        showToast('Task Deleted', res.data.message, 'info');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Delete Error', err.response?.data?.message || 'Failed to delete task.', 'error');
       return { success: false };
     }
   };
@@ -1590,6 +1687,11 @@ export const PortalProvider = ({ children }) => {
         reviewProgress,
         requestTransfer,
         respondTransfer,
+        adminReviewTransfer,
+        adminDirectTransfer,
+        adminUpdateTaskStatus,
+        updateTask,
+        deleteTask,
         requestExtension,
         reviewExtension,
         toggleBlocker,

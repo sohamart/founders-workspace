@@ -639,7 +639,7 @@ exports.requestTransfer = async (req, res) => {
   });
 };
 
-// @desc Recipient Accepts or Declines Task Transfer
+// @desc Recipient Accepts or Declines Task Transfer (Step 1 of Handover: Founder Acceptance)
 // @route POST /api/tasks/:id/transfer-respond
 exports.respondTransfer = async (req, res) => {
   const { id } = req.params;
@@ -659,41 +659,61 @@ exports.respondTransfer = async (req, res) => {
   }
 
   if (transfer.toUserId !== req.user.id && req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Only the recipient founder or Admin can respond to this transfer.' });
+    return res.status(403).json({ success: false, message: 'Only the recipient founder can respond to this transfer.' });
   }
 
   if (!store.notifications) store.notifications = [];
   const io = req.io || req.app?.get('io');
 
   if (decision === 'accept') {
-    transfer.status = 'accepted';
-    task.assignedTo = [transfer.toUserId];
+    // 2-Step Protocol: Target founder accepted -> now awaits Super Admin final ratification!
+    transfer.status = 'founder_accepted';
+    transfer.founderAcceptedAt = new Date().toISOString();
+    transfer.founderAcceptedBy = req.user.name;
 
     const accLog = {
       id: `log_${Date.now()}`,
-      action: 'TASK_TRANSFER_ACCEPTED',
-      details: `${req.user.name} accepted task handover for "${task.title}". Task ownership transferred.`,
+      action: 'TASK_TRANSFER_FOUNDER_ACCEPTED',
+      details: `${req.user.name} accepted task handover for "${task.title}". Awaiting final Admin ratification.`,
       actor: req.user.name,
       timestamp: new Date().toISOString()
     };
     store.auditLogs.unshift(accLog);
 
-    const accNotif = {
-      id: `notif_tr_acc_${Date.now()}`,
-      title: `✅ Handover Accepted: ${task.title}`,
-      message: `${req.user.name} accepted task handover for "${task.title}". Ownership successfully transferred.`,
-      type: 'success',
-      targetUserId: transfer.fromUserId,
-      linkTab: 'tasks',
+    // Notify Super Admin that founder accepted and admin review is now required
+    const adminNotif = {
+      id: `notif_tr_adm_rev_${Date.now()}`,
+      title: `⚡ Handover Action Needed: ${task.title}`,
+      message: `${req.user.name} accepted handover for "${task.title}". Admin approval required to finalize transfer.`,
+      type: 'warning',
+      priority: 'urgent',
+      targetRole: 'superadmin',
+      linkTab: 'requests',
       referenceId: task.id,
       timestamp: new Date().toISOString(),
       readBy: []
     };
-    store.notifications.unshift(accNotif);
+    store.notifications.unshift(adminNotif);
+
+    // Notify original owner that recipient accepted and it is now queued for admin
+    const ownerNotif = {
+      id: `notif_tr_owner_${Date.now()}`,
+      title: `🔄 Handover Accepted by ${req.user.name}`,
+      message: `${req.user.name} accepted "${task.title}". Handover forwarded to Lead Admin for final ratification.`,
+      type: 'info',
+      targetUserId: transfer.fromUserId,
+      linkTab: 'requests',
+      referenceId: task.id,
+      timestamp: new Date().toISOString(),
+      readBy: []
+    };
+    store.notifications.unshift(ownerNotif);
+
     if (io) {
-      io.emit('new_notification', accNotif);
+      io.emit('new_notification', adminNotif);
+      io.emit('new_notification', ownerNotif);
       io.emit('new_activity', accLog);
-      io.emit('task_updated', { action: 'TASK_TRANSFER_ACCEPTED', taskId: task.id, task });
+      io.emit('task_updated', { action: 'TASK_TRANSFER_FOUNDER_ACCEPTED', taskId: task.id, task });
     }
   } else {
     transfer.status = 'declined';
@@ -731,8 +751,389 @@ exports.respondTransfer = async (req, res) => {
 
   res.json({
     success: true,
-    message: `Transfer request ${decision === 'accept' ? 'Accepted' : 'Declined'}.`,
+    message: decision === 'accept' 
+      ? 'Transfer accepted by founder. Queued for Lead Admin final approval.' 
+      : 'Transfer request declined.',
     task
+  });
+};
+
+// @desc Admin Final Ratification for Founder Accepted Transfer (Step 2 of Handover)
+// @route POST /api/tasks/:id/transfer-admin-review
+exports.adminReviewTransfer = async (req, res) => {
+  const { id } = req.params;
+  const { transferId, decision, note } = req.body; // decision: 'approve' | 'reject'
+
+  const store = getStore();
+  const task = store.tasks.find(t => t.id === id);
+
+  if (!task) {
+    return res.status(404).json({ success: false, message: 'Task not found.' });
+  }
+
+  const transfer = task.transferRequests.find(tr => tr.id === transferId);
+  if (!transfer) {
+    return res.status(404).json({ success: false, message: 'Transfer request not found.' });
+  }
+
+  if (!store.notifications) store.notifications = [];
+  const io = req.io || req.app?.get('io');
+
+  if (decision === 'approve') {
+    transfer.status = 'accepted';
+    transfer.adminApprovedAt = new Date().toISOString();
+    transfer.adminApprovedBy = req.user.name;
+
+    // Finalize ownership transfer!
+    task.assignedTo = [transfer.toUserId];
+
+    const approveLog = {
+      id: `log_${Date.now()}`,
+      action: 'TASK_TRANSFER_ADMIN_APPROVED',
+      details: `Lead Admin ${req.user.name} approved task handover for "${task.title}". Ownership successfully transferred to ${transfer.toUserName}.`,
+      actor: req.user.name,
+      timestamp: new Date().toISOString()
+    };
+    store.auditLogs.unshift(approveLog);
+
+    // Notify new owner
+    const newOwnerNotif = {
+      id: `notif_tr_done_new_${Date.now()}`,
+      title: `✅ Task Assigned: ${task.title}`,
+      message: `Lead Admin ratified transfer. "${task.title}" is now assigned to you.`,
+      type: 'success',
+      targetUserId: transfer.toUserId,
+      linkTab: 'tasks',
+      referenceId: task.id,
+      timestamp: new Date().toISOString(),
+      readBy: []
+    };
+    store.notifications.unshift(newOwnerNotif);
+
+    // Notify previous owner
+    const prevOwnerNotif = {
+      id: `notif_tr_done_prev_${Date.now()}`,
+      title: `✅ Handover Completed: ${task.title}`,
+      message: `Lead Admin approved handover. "${task.title}" transferred to ${transfer.toUserName}.`,
+      type: 'success',
+      targetUserId: transfer.fromUserId,
+      linkTab: 'tasks',
+      referenceId: task.id,
+      timestamp: new Date().toISOString(),
+      readBy: []
+    };
+    store.notifications.unshift(prevOwnerNotif);
+
+    // Group chat announcement
+    if (!store.messages) store.messages = [];
+    const chatMsg = {
+      id: `msg_tr_done_${Date.now()}`,
+      channelId: 'founders_group',
+      senderId: 'system_handover',
+      senderName: '🔄 TASK HANDOVER COMPLETED',
+      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+      type: 'system_alert',
+      text: `✅ HANDOVER RATIFIED: Task "${task.title}" transferred from @${transfer.fromUserName} to @${transfer.toUserName} by Admin.`,
+      timestamp: new Date().toISOString()
+    };
+    store.messages.unshift(chatMsg);
+
+    if (io) {
+      io.emit('new_notification', newOwnerNotif);
+      io.emit('new_notification', prevOwnerNotif);
+      io.emit('new_activity', approveLog);
+      io.emit('new_message', chatMsg);
+      io.emit('task_updated', { action: 'TASK_TRANSFER_ADMIN_APPROVED', taskId: task.id, task });
+    }
+  } else {
+    transfer.status = 'admin_rejected';
+    transfer.adminRejectNote = note || 'Admin declined task handover.';
+
+    const rejLog = {
+      id: `log_${Date.now()}`,
+      action: 'TASK_TRANSFER_ADMIN_REJECTED',
+      details: `Lead Admin ${req.user.name} rejected task handover for "${task.title}". Reason: ${transfer.adminRejectNote}.`,
+      actor: req.user.name,
+      timestamp: new Date().toISOString()
+    };
+    store.auditLogs.unshift(rejLog);
+
+    const rejNotif = {
+      id: `notif_tr_rej_${Date.now()}`,
+      title: `❌ Transfer Ratification Rejected: ${task.title}`,
+      message: `Lead Admin rejected handover for "${task.title}". Note: "${transfer.adminRejectNote}". Task remains with original owner.`,
+      type: 'warning',
+      targetUserId: transfer.fromUserId,
+      linkTab: 'tasks',
+      referenceId: task.id,
+      timestamp: new Date().toISOString(),
+      readBy: []
+    };
+    store.notifications.unshift(rejNotif);
+
+    if (io) {
+      io.emit('new_notification', rejNotif);
+      io.emit('new_activity', rejLog);
+      io.emit('task_updated', { action: 'TASK_TRANSFER_ADMIN_REJECTED', taskId: task.id, task });
+    }
+  }
+
+  saveStore(store);
+
+  res.json({
+    success: true,
+    message: decision === 'approve' ? 'Task transfer approved and finalized.' : 'Task transfer rejected.',
+    task
+  });
+};
+
+// @desc Direct Admin Task Transfer (Instant Reassignment, No Request Needed)
+// @route POST /api/tasks/:id/admin-transfer
+exports.adminDirectTransfer = async (req, res) => {
+  const { id } = req.params;
+  const { targetFounderId, note } = req.body;
+
+  const store = getStore();
+  const task = store.tasks.find(t => t.id === id);
+
+  if (!task) {
+    return res.status(404).json({ success: false, message: 'Task not found.' });
+  }
+
+  const targetFounder = store.users.find(u => u.id === targetFounderId);
+  if (!targetFounder) {
+    return res.status(404).json({ success: false, message: 'Target founder does not exist.' });
+  }
+
+  const previousOwnerId = task.assignedTo?.[0] || 'unassigned';
+  const previousOwner = store.users.find(u => u.id === previousOwnerId);
+
+  // Directly reassign task without any request or approval needed!
+  task.assignedTo = [targetFounderId];
+
+  if (!Array.isArray(task.transferRequests)) {
+    task.transferRequests = [];
+  }
+
+  const directTransferRecord = {
+    id: `tr_adm_${Date.now()}`,
+    fromUserId: previousOwnerId,
+    fromUserName: previousOwner ? previousOwner.name : 'Unassigned',
+    toUserId: targetFounder.id,
+    toUserName: targetFounder.name,
+    reason: note || 'Direct reassignment by Super Admin.',
+    status: 'accepted',
+    isDirectAdminTransfer: true,
+    createdAt: new Date().toISOString(),
+    adminApprovedAt: new Date().toISOString(),
+    adminApprovedBy: req.user.name
+  };
+  task.transferRequests.unshift(directTransferRecord);
+
+  const transferLog = {
+    id: `log_${Date.now()}`,
+    action: 'TASK_ADMIN_DIRECT_TRANSFER',
+    details: `Lead Admin ${req.user.name} transferred task "${task.title}" to ${targetFounder.name}.`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  store.auditLogs.unshift(transferLog);
+
+  if (!store.notifications) store.notifications = [];
+  const notif = {
+    id: `notif_adm_tr_${Date.now()}`,
+    title: `⚡ Task Reassigned to You: ${task.title}`,
+    message: `Lead Admin ${req.user.name} assigned task "${task.title}" to you.${note ? ` Note: "${note}"` : ''}`,
+    type: 'info',
+    priority: 'urgent',
+    targetUserId: targetFounderId,
+    linkTab: 'tasks',
+    referenceId: task.id,
+    timestamp: new Date().toISOString(),
+    readBy: []
+  };
+  store.notifications.unshift(notif);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_notification', notif);
+    io.emit('new_activity', transferLog);
+    io.emit('task_updated', { action: 'TASK_ADMIN_DIRECT_TRANSFER', taskId: task.id, task });
+  }
+
+  saveStore(store);
+
+  res.json({
+    success: true,
+    message: `Task successfully transferred to ${targetFounder.name} directly.`,
+    task
+  });
+};
+
+// @desc Direct Admin Status Change (No Request Needed)
+// @route PATCH /api/tasks/:id/admin-status
+exports.adminUpdateStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ['todo', 'pending', 'in_progress', 'review_pending', 'completed', 'blocked'];
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: `Invalid status. Valid statuses: ${validStatuses.join(', ')}` });
+  }
+
+  const store = getStore();
+  const task = store.tasks.find(t => t.id === id);
+
+  if (!task) {
+    return res.status(404).json({ success: false, message: 'Task not found.' });
+  }
+
+  const oldStatus = task.status;
+  task.status = status;
+
+  if (status === 'completed') {
+    task.progress = 100;
+    task.completedAt = new Date().toISOString();
+    task.isBlocked = false;
+  } else if (status === 'blocked') {
+    task.isBlocked = true;
+    if (!task.blockerReason) task.blockerReason = 'Admin marked as blocked';
+  } else {
+    task.isBlocked = false;
+    if (oldStatus === 'completed' && task.progress === 100) {
+      task.progress = 75; // reset progress slightly if moved back
+    }
+  }
+
+  const log = {
+    id: `log_${Date.now()}`,
+    action: 'TASK_ADMIN_STATUS_CHANGED',
+    details: `Lead Admin ${req.user.name} changed status of "${task.title}" from "${oldStatus}" to "${status}".`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  store.auditLogs.unshift(log);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_activity', log);
+    io.emit('task_updated', { action: 'TASK_ADMIN_STATUS_CHANGED', taskId: task.id, task });
+  }
+
+  saveStore(store);
+
+  res.json({
+    success: true,
+    message: `Task status updated to "${status}".`,
+    task
+  });
+};
+
+// @desc Admin Edit Task Details
+// @route PUT /api/tasks/:id
+exports.updateTask = async (req, res) => {
+  const { id } = req.params;
+  const { 
+    title, 
+    description, 
+    topic, 
+    priority, 
+    category, 
+    deadline, 
+    assignedTo, 
+    progress, 
+    status, 
+    projectId,
+    checklist 
+  } = req.body;
+
+  const store = getStore();
+  const task = store.tasks.find(t => t.id === id);
+
+  if (!task) {
+    return res.status(404).json({ success: false, message: 'Task not found.' });
+  }
+
+  if (title !== undefined) task.title = title.trim();
+  if (description !== undefined) task.description = description.trim();
+  if (topic !== undefined) task.topic = topic.trim();
+  if (priority !== undefined) task.priority = priority;
+  if (category !== undefined) task.category = category;
+  if (deadline !== undefined) task.deadline = deadline;
+  if (projectId !== undefined) task.projectId = projectId;
+  if (Array.isArray(assignedTo) && assignedTo.length > 0) task.assignedTo = assignedTo;
+  if (progress !== undefined) task.progress = Number(progress);
+  if (status !== undefined) {
+    task.status = status;
+    if (status === 'completed') {
+      task.progress = 100;
+      task.completedAt = task.completedAt || new Date().toISOString();
+    }
+  }
+  if (Array.isArray(checklist)) task.checklist = checklist;
+
+  task.updatedAt = new Date().toISOString();
+
+  const editLog = {
+    id: `log_${Date.now()}`,
+    action: 'TASK_EDITED_BY_ADMIN',
+    details: `Lead Admin ${req.user.name} updated details for task "${task.title}".`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  store.auditLogs.unshift(editLog);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_activity', editLog);
+    io.emit('task_updated', { action: 'TASK_EDITED_BY_ADMIN', taskId: task.id, task });
+  }
+
+  saveStore(store);
+
+  res.json({
+    success: true,
+    message: 'Task updated successfully by Lead Admin.',
+    task
+  });
+};
+
+// @desc Admin Delete Task
+// @route DELETE /api/tasks/:id
+exports.deleteTask = async (req, res) => {
+  const { id } = req.params;
+
+  const store = getStore();
+  const taskIndex = store.tasks.findIndex(t => t.id === id);
+
+  if (taskIndex === -1) {
+    return res.status(404).json({ success: false, message: 'Task not found.' });
+  }
+
+  const deletedTask = store.tasks[taskIndex];
+  store.tasks.splice(taskIndex, 1);
+
+  const deleteLog = {
+    id: `log_${Date.now()}`,
+    action: 'TASK_DELETED_BY_ADMIN',
+    details: `Lead Admin ${req.user.name} deleted task "${deletedTask.title}".`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  store.auditLogs.unshift(deleteLog);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_activity', deleteLog);
+    io.emit('task_deleted', { taskId: id, taskTitle: deletedTask.title });
+    io.emit('task_updated', { action: 'TASK_DELETED_BY_ADMIN', taskId: id });
+  }
+
+  saveStore(store);
+
+  res.json({
+    success: true,
+    message: `Task "${deletedTask.title}" has been deleted by Lead Admin.`
   });
 };
 

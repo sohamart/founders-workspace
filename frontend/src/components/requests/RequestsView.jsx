@@ -42,6 +42,7 @@ export const RequestsView = () => {
     reviewProgress,
     requestTransfer,
     respondTransfer,
+    adminReviewTransfer,
     requestExtension,
     reviewExtension,
     toggleBlocker,
@@ -75,9 +76,11 @@ export const RequestsView = () => {
     t.extensionRequest && t.extensionRequest.status === 'pending'
   );
 
-  // 5. Task Transfer Requests (Rule 10)
+  // 5. Task Transfer Requests (Rule 10: 2-Step Handover Protocol)
   const pendingTransfers = tasks.filter(t => 
-    t.transferRequests && t.transferRequests.some(tr => tr.status === 'pending')
+    t.transferRequests && t.transferRequests.some(tr => 
+      tr.status === 'pending' || tr.status === 'pending_founder' || tr.status === 'founder_accepted'
+    )
   );
 
   // 6. Active Blocker Flags (Rule 08)
@@ -192,6 +195,21 @@ export const RequestsView = () => {
     if (note !== null) {
       setProcessingId(transferId);
       await respondTransfer(taskId, { transferId, decision: 'decline', note });
+      setProcessingId(null);
+    }
+  };
+
+  const handleAdminApproveTransfer = async (taskId, transferId) => {
+    setProcessingId(transferId);
+    await adminReviewTransfer(taskId, transferId, 'approve');
+    setProcessingId(null);
+  };
+
+  const handleAdminRejectTransfer = async (taskId, transferId) => {
+    const note = window.prompt('Reason for rejecting task transfer ratification:', 'Not aligned with current sprint allocation.');
+    if (note !== null) {
+      setProcessingId(transferId);
+      await adminReviewTransfer(taskId, transferId, 'reject', note);
       setProcessingId(null);
     }
   };
@@ -853,7 +871,7 @@ export const RequestsView = () => {
           </div>
         )}
 
-        {/* SECTION 4: Task Transfer / Handover Requests (Rule 10) */}
+        {/* SECTION 4: Task Transfer / Handover Requests (Rule 10: 2-Step Protocol) */}
         {(activeTab === 'all' || activeTab === 'transfers') && pendingTransfers.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 px-1">
@@ -867,39 +885,52 @@ export const RequestsView = () => {
               {pendingTransfers
                 .filter(t => matchesSearch(t.title))
                 .flatMap(task => 
-                  task.transferRequests
-                    .filter(tr => tr.status === 'pending')
+                  (task.transferRequests || [])
+                    .filter(tr => tr.status === 'pending' || tr.status === 'pending_founder' || tr.status === 'founder_accepted')
                     .map(tr => ({ task, tr }))
                 )
                 .map(({ task, tr }) => {
                   const fromFounder = founders.find(f => f.id === tr.fromUserId) || {
-                    name: 'Current Owner',
+                    name: tr.fromUserName || 'Current Owner',
                     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
                   };
                   const toFounder = founders.find(f => f.id === tr.toUserId) || {
-                    name: 'Target Founder',
+                    name: tr.toUserName || 'Target Founder',
                     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
                   };
 
-                  const canRespond = currentUser?.id === tr.toUserId || isSuperAdmin;
+                  const isFounderAccepted = tr.status === 'founder_accepted';
+                  const isPendingFounder = tr.status === 'pending' || tr.status === 'pending_founder';
+                  const isTargetFounder = currentUser?.id === tr.toUserId;
 
                   return (
                     <div
                       key={`tr_${tr.id}`}
-                      className="p-5 rounded-3xl bg-white border border-blue-200/90 shadow-sm hover:border-blue-400 hover:shadow-lg transition-all space-y-3.5"
+                      className={`p-5 rounded-3xl bg-white border transition-all space-y-3.5 shadow-sm ${
+                        isFounderAccepted
+                          ? 'border-amber-300 hover:border-amber-500 hover:shadow-lg bg-gradient-to-br from-white to-amber-50/20'
+                          : 'border-blue-200/90 hover:border-blue-400 hover:shadow-lg'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-mono mb-1 inline-block">
-                            Rule 10: Task Handover Protocol
+                            Rule 10: 2-Step Handover Protocol
                           </span>
                           <h4 className="text-sm font-bold text-slate-900 leading-snug">
                             {task.title}
                           </h4>
                         </div>
-                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold font-mono">
-                          Handover Pending
-                        </span>
+                        {isFounderAccepted ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold font-mono border border-amber-300 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-amber-600" />
+                            <span>Step 2: Admin Approval Pending</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold font-mono">
+                            Step 1: Recipient Acceptance Pending
+                          </span>
+                        )}
                       </div>
 
                       {/* From -> To Founders Flow */}
@@ -923,39 +954,95 @@ export const RequestsView = () => {
                         </div>
                       </div>
 
-                      {/* Reason */}
-                      <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700">
-                        <p className="font-semibold text-slate-900 mb-0.5 text-[11px]">Handover Brief / Reason:</p>
-                        <p className="italic">"{tr.reason || 'Reassigning domain workload for sprint balance.'}"</p>
+                      {/* Reason & Handover Brief */}
+                      <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 space-y-1">
+                        <div>
+                          <p className="font-semibold text-slate-900 text-[11px]">Handover Brief / Work Done:</p>
+                          <p className="italic text-slate-600">"{tr.workDoneSoFar || tr.reason || 'Reassigning domain workload for sprint balance.'}"</p>
+                        </div>
+                        {tr.remainingWork && (
+                          <div>
+                            <p className="font-semibold text-slate-900 text-[11px]">Remaining Work:</p>
+                            <p className="italic text-slate-600">"{tr.remainingWork}"</p>
+                          </div>
+                        )}
+                        {tr.reason && tr.workDoneSoFar && (
+                          <div>
+                            <p className="font-semibold text-slate-900 text-[11px]">Reason:</p>
+                            <p className="italic text-slate-600">"{tr.reason}"</p>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Actions */}
-                      {canRespond ? (
-                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                          <button
-                            onClick={() => handleAcceptTransfer(task.id, tr.id)}
-                            disabled={processingId === tr.id}
-                            className="flex-1 py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            <Check className="w-4 h-4" />
-                            <span>Accept Ownership</span>
-                          </button>
+                      {/* Actions according to 2-Step Protocol */}
+                      {isPendingFounder ? (
+                        /* STEP 1: Founder Acceptance */
+                        isTargetFounder ? (
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                            <button
+                              onClick={() => handleAcceptTransfer(task.id, tr.id)}
+                              disabled={processingId === tr.id}
+                              className="flex-1 py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Accept Handover</span>
+                            </button>
 
-                          <button
-                            onClick={() => handleDeclineTransfer(task.id, tr.id)}
-                            disabled={processingId === tr.id}
-                            className="py-2 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
-                          >
-                            <X className="w-4 h-4" />
-                            <span>Decline Handover</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-semibold flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span>Awaiting acceptance by {toFounder.name}.</span>
-                        </div>
-                      )}
+                            <button
+                              onClick={() => handleDeclineTransfer(task.id, tr.id)}
+                              disabled={processingId === tr.id}
+                              className="py-2 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              <X className="w-4 h-4" />
+                              <span>Decline Handover</span>
+                            </button>
+                          </div>
+                        ) : isSuperAdmin ? (
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-semibold flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <span>Step 1 of 2: Awaiting acceptance by {toFounder.name}. Lead Admin approval will unlock once accepted.</span>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-semibold flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <span>Awaiting acceptance by {toFounder.name}.</span>
+                          </div>
+                        )
+                      ) : isFounderAccepted ? (
+                        /* STEP 2: Lead Admin Ratification */
+                        isSuperAdmin ? (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="p-2 rounded-xl bg-amber-50 text-amber-900 text-[10px] font-medium border border-amber-200 flex items-center gap-1.5">
+                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>Accepted by {toFounder.name}. As Lead Admin, ratify to finalize task ownership transfer.</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleAdminApproveTransfer(task.id, tr.id)}
+                                disabled={processingId === tr.id}
+                                className="flex-1 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                <Check className="w-4 h-4" />
+                                <span>Approve Transfer (Ratify)</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleAdminRejectTransfer(task.id, tr.id)}
+                                disabled={processingId === tr.id}
+                                className="py-2 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <X className="w-4 h-4" />
+                                <span>Reject</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Accepted by {toFounder.name} ✓ Awaiting final ratification by Lead Admin.</span>
+                          </div>
+                        )
+                      ) : null}
                     </div>
                   );
                 })}

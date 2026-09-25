@@ -72,7 +72,7 @@ const MainPortal = () => {
 
   // Gate 0: Wait for initial settings check so Coming Soon never flickers on boot
   if (!isSettingsLoaded) {
-    return null;
+    return <SplashScreen onFinish={() => {}} />;
   }
 
   // 1. Gate 1: Coming Soon Gateway with Passcode / Admin Bypass

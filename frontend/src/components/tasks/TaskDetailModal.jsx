@@ -18,7 +18,13 @@ import {
   AlertTriangle,
   UserCheck,
   Sparkles,
-  Link2
+  Link2,
+  Trash2,
+  Edit3,
+  Save,
+  User,
+  Zap,
+  Check
 } from 'lucide-react';
 import { LinkHighlighter } from '../common/LinkHighlighter';
 import { VoiceNoteRecorder } from '../common/VoiceNoteRecorder';
@@ -33,10 +39,21 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
     requestExtension, 
     toggleBlocker,
     uploadFile,
-    founders
+    founders,
+    updateTask,
+    deleteTask,
+    adminUpdateTaskStatus
   } = usePortal();
 
   const [activeTab, setActiveTab] = useState('overview'); // overview | daily_update | request_progress | extension
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title || '');
+  const [editDesc, setEditDesc] = useState(task.description || '');
+  const [editTopic, setEditTopic] = useState(task.topic || task.projectName || '');
+  const [editPriority, setEditPriority] = useState(task.priority || 'medium');
+  const [editDeadline, setEditDeadline] = useState(task.deadline ? task.deadline.slice(0, 16) : '');
+  const [editProgress, setEditProgress] = useState(task.progress || 0);
+  const [editAssignedTo, setEditAssignedTo] = useState(task.assignedTo?.[0] || '');
   
   // Daily Update form
   const [dailyText, setDailyText] = useState('');
@@ -157,12 +174,36 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
     }
   };
 
+  const handleAdminSave = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    await updateTask(task.id, {
+      title: editTitle,
+      description: editDesc,
+      topic: editTopic,
+      priority: editPriority,
+      deadline: editDeadline,
+      progress: editProgress,
+      assignedTo: editAssignedTo ? [editAssignedTo] : task.assignedTo
+    });
+    setIsSubmitting(false);
+    setIsEditing(false);
+  };
+
+  const handleAdminDelete = async () => {
+    const confirm = window.confirm(`Are you sure you want to delete task "${task.title}"? This action cannot be undone.`);
+    if (confirm) {
+      await deleteTask(task.id);
+      onClose();
+    }
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800">
-      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-3xl flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in text-slate-800">
+      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl rounded-none sm:rounded-3xl flex flex-col shadow-2xl border-0 sm:border sm:border-slate-200 overflow-hidden">
         
         {/* Header Bar */}
-        <div className="p-3.5 sm:p-5 md:p-6 border-b border-slate-100 flex items-start justify-between gap-3 bg-slate-50/70">
+        <div className="p-3.5 sm:p-5 md:p-6 border-b border-slate-100 flex items-start justify-between gap-3 bg-white sm:bg-slate-50/70 shrink-0">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
@@ -202,6 +243,52 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Lead Admin Instant Control Bar (Direct status update, edit, delete, transfer) */}
+        {isAdmin && (
+          <div className="bg-amber-50/90 border-b border-amber-200/90 px-3.5 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-bold text-amber-900 flex items-center gap-1 text-[11px] whitespace-nowrap">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Status Override:</span>
+              </span>
+              <select
+                value={task.status}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  await adminUpdateTaskStatus(task.id, newStatus);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-white border border-amber-300 font-bold text-slate-800 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
+              >
+                <option value="todo">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review_pending">Pending Review</option>
+                <option value="completed">Completed ✓</option>
+                <option value="blocked">Blocked 🚨</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(!isEditing)}
+                className="px-2.5 py-1 rounded-xl bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              >
+                <Edit3 className="w-3 h-3 text-amber-700" />
+                <span>{isEditing ? 'Cancel Edit' : 'Edit Task'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAdminDelete}
+                className="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation - Mobile-Optimized Horizontal Scroll */}
         <div className="flex items-center gap-1 px-3 sm:px-6 pt-2 sm:pt-3 border-b border-slate-200/80 bg-white text-xs font-semibold text-slate-500 overflow-x-auto no-scrollbar flex-nowrap shrink-0">
@@ -257,6 +344,121 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
           {activeTab === 'overview' && (
             <div className="space-y-5">
               
+              {/* ADMIN EDIT FORM (If editing active) */}
+              {isEditing && isAdmin && (
+                <form onSubmit={handleAdminSave} className="p-4 sm:p-5 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-3.5 text-xs animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                    <span className="font-bold text-amber-900 text-xs flex items-center gap-1">
+                      <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Edit Task Details (Admin Mode)</span>
+                    </span>
+                    <span className="text-[10px] text-amber-700 font-mono font-medium">Direct update without request</span>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Task Title</label>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Description</label>
+                    <textarea
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Project / Topic</label>
+                      <input
+                        type="text"
+                        value={editTopic}
+                        onChange={(e) => setEditTopic(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Priority</label>
+                      <select
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      >
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent Priority</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Deadline</label>
+                      <input
+                        type="datetime-local"
+                        value={editDeadline}
+                        onChange={(e) => setEditDeadline(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Progress % ({editProgress}%)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={editProgress}
+                        onChange={(e) => setEditProgress(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-200 rounded-lg cursor-pointer accent-orange-600 mt-2"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">Assigned Founder</label>
+                      <select
+                        value={editAssignedTo}
+                        onChange={(e) => setEditAssignedTo(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      >
+                        <option value="">Select founder...</option>
+                        {founders.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name} ({f.designation})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSubmitting ? 'Saving...' : 'Save Task Changes'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="py-2.5 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {/* Premium Success Hero Banner for Completed Deliverable */}
               {isCompleted && (
                 <div className="p-4 md:p-5 rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-lg relative overflow-hidden flex items-center justify-between gap-4 border border-emerald-400/40">
@@ -736,13 +938,13 @@ export const TaskDetailModal = ({ task, onClose, onOpenProofReview, onOpenTransf
                   {task.isBlocked ? '✓ Clear Blocker' : '🚨 Flag Blocker (Rule 08)'}
                 </button>
 
-                {/* Task Transfer Button (Strict Self-Ownership) */}
-                {isAssignee && (
+                {/* Task Transfer Button (Available to assigned founder and Admin) */}
+                {(isAssignee || isAdmin) && (
                   <button
                     onClick={() => onOpenTransferModal(task)}
                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs flex items-center gap-1 cursor-pointer shadow-2xs"
                   >
-                    <span>🔄 Transfer Task</span>
+                    <span>{isAdmin ? '⚡ Reassign Founder' : '🔄 Transfer Task'}</span>
                   </button>
                 )}
               </>

@@ -17,4 +17,10 @@ router.post('/:id/approve-creation', authenticate, requireAdmin, taskController.
 router.post('/:id/reject-creation', authenticate, requireAdmin, taskController.rejectTaskCreation);
 router.post('/:id/checklist-toggle', authenticate, taskController.toggleChecklist);
 
+router.put('/:id', authenticate, requireAdmin, taskController.updateTask);
+router.delete('/:id', authenticate, requireAdmin, taskController.deleteTask);
+router.patch('/:id/admin-status', authenticate, requireAdmin, taskController.adminUpdateStatus);
+router.post('/:id/admin-transfer', authenticate, requireAdmin, taskController.adminDirectTransfer);
+router.post('/:id/transfer-admin-review', authenticate, requireAdmin, taskController.adminReviewTransfer);
+
 module.exports = router;

@@ -65,16 +65,16 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
   };
 
   return (
-    <header className="shrink-0 relative z-50 w-full bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-2.5 sm:px-4 md:px-6 py-2 sm:py-2.5 transition-all shadow-xs">
-      <div className="max-w-[1700px] mx-auto flex items-center justify-between gap-1.5 sm:gap-4 w-full">
+    <header className="shrink-0 relative z-50 w-full max-w-full overflow-hidden bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-2 sm:px-4 md:px-6 py-1.5 sm:py-2.5 transition-all shadow-xs">
+      <div className="max-w-[1700px] mx-auto flex items-center justify-between gap-1 sm:gap-4 w-full min-w-0">
         
         {/* Left: Mobile Brand or Desktop Breadcrumb */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
           {/* Mobile Only Brand Lockup */}
           <div 
             data-tour="brand-logo"
             onClick={() => setCurrentTab('dashboard')}
-            className="flex md:hidden items-center gap-1 cursor-pointer font-bold tracking-tight shrink-0"
+            className="flex md:hidden items-center gap-1 cursor-pointer font-bold tracking-tight shrink-0 select-none"
           >
             <span className="bg-slate-900 text-white px-1.5 py-0.5 rounded-md text-[10px] font-mono shadow-xs">
               Weblets®
@@ -96,7 +96,7 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
         </div>
 
         {/* Right Action Icons & Profile */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 md:gap-3 shrink-0">
           
           {/* PWA App Installer (Hidden on Mobile top bar for clean executive layout) */}
           <PwaInstallButton className="hidden md:flex" />
@@ -111,7 +111,7 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
               if (onStartTour) onStartTour();
             }}
             title="Take Guided Product Tour"
-            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/80 hover:border-orange-400 text-orange-900 transition-all text-[11px] sm:text-xs font-bold cursor-pointer shadow-xs hover:shadow-sm shrink-0"
+            className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/80 hover:border-orange-400 text-orange-900 transition-all text-[11px] sm:text-xs font-bold cursor-pointer shadow-xs hover:shadow-sm shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5 text-orange-600 animate-spin-slow shrink-0" />
             <span className="hidden sm:inline">Tour</span>
@@ -135,11 +135,11 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
             {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-orange-600" />}
           </button>
 
-          {/* WhatsApp Chat Quick Launch (desktop/tablet; mobile dock already has Chat) */}
+          {/* WhatsApp Chat Quick Launch (Desktop/Tablet only; Mobile dock already hosts WhatsApp Chat) */}
           <button
             data-tour="header-chat"
             onClick={() => setCurrentTab('chat')}
-            className={`hidden sm:flex relative p-1.5 sm:p-2 rounded-xl transition-all shrink-0 ${
+            className={`hidden md:flex relative p-1.5 sm:p-2 rounded-xl transition-all shrink-0 ${
               currentTab === 'chat'
                 ? 'bg-orange-50 text-orange-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-orange-50'
@@ -174,7 +174,7 @@ export const HeaderBar = ({ onOpenNotifications, onStartTour }) => {
             <div className="relative shrink-0" data-tour="header-profile">
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 p-0.5 sm:p-1 sm:pl-2.5 rounded-full border border-slate-200 bg-white hover:border-orange-300 transition-all shadow-xs"
+                className="flex items-center gap-1.5 sm:gap-2 p-0.5 sm:p-1 sm:pl-2.5 rounded-full border border-slate-200 bg-white hover:border-orange-300 transition-all shadow-xs shrink-0"
               >
                 <div className="text-right hidden sm:block">
                   <div className="text-xs font-semibold text-slate-800 flex items-center justify-end gap-1">
