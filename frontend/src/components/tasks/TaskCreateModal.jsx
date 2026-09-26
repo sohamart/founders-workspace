@@ -240,7 +240,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Build Weblets Auth & Onboarding Flow"
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-white text-slate-800 placeholder:text-slate-400 font-medium"
             />
           </div>
 
@@ -276,7 +276,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="UI/UX, Backend, Client Work"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-white text-slate-800 placeholder:text-slate-400 font-medium"
               />
             </div>
           </div>
@@ -360,7 +360,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50 text-slate-800 font-medium"
               />
             </div>
           </div>
@@ -373,7 +373,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Outline deliverables, constraints, and instructions..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50 text-slate-800 placeholder:text-slate-400 font-medium"
             />
           </div>
 
@@ -386,14 +386,14 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
                 value={refTitle}
                 onChange={(e) => setRefTitle(e.target.value)}
                 placeholder="Title (e.g. Figma Prototype)"
-                className="w-1/3 px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                className="w-1/3 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400"
               />
               <input
                 type="url"
                 value={refUrl}
                 onChange={(e) => setRefUrl(e.target.value)}
                 placeholder="URL (https://...)"
-                className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400"
               />
               <button
                 type="button"
@@ -427,7 +427,7 @@ export const TaskCreateModal = ({ onClose, initialProjectId }) => {
                 value={checkItemText}
                 onChange={(e) => setCheckItemText(e.target.value)}
                 placeholder="e.g. Finish Wireframe with reference to Weblets UI kit"
-                className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white"
+                className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400"
               />
               <button
                 type="button"

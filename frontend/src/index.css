@@ -3,9 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
   body {
     font-family: 'Fira Sans', 'Inter', system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    color-scheme: light;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  input, select, textarea {
+    color-scheme: light;
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #94a3b8;
   }
 }
 
