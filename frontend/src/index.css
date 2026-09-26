@@ -55,6 +55,39 @@
   box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
 }
 
+/* ========================================================
+   FOUNDERS WORKSPACE UNIFIED THEME SYSTEM (LIGHT EXECUTIVE)
+   ======================================================== */
+.portal-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.portal-card-interactive:hover {
+  border-color: #fb923c;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+.portal-section {
+  background-color: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1rem;
+}
+
+.portal-subcard {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.portal-subcard:hover {
+  border-color: #fdba74;
+}
+
 /* WhatsApp wallpaper pattern (Clean Minimal Light) */
 .chat-pattern {
   background-color: #efeae2;
