@@ -19,15 +19,20 @@ import {
   Code,
   Terminal,
   Cpu,
-  ShieldCheck
+  ShieldCheck,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
+import { EditClientModal } from './EditClientModal';
 
 export const ClientHubView = ({ onOpenVault, onOpenNewClientModal, onOpenCreateTaskUnderProject }) => {
-  const { clientProjects, tasks, currentUser, founders, addPipelineStage } = usePortal();
+  const { clientProjects, tasks, currentUser, founders, addPipelineStage, deleteClientProject } = usePortal();
+  const isAdmin = currentUser?.role === 'superadmin';
 
   const [activeCategory, setActiveCategory] = useState('all'); // all | client | internal
   const [expandedProjectId, setExpandedProjectId] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
 
   // Quick Stage Creation state
   const [addingStageProjectId, setAddingStageProjectId] = useState(null);
@@ -193,7 +198,7 @@ export const ClientHubView = ({ onOpenVault, onOpenNewClientModal, onOpenCreateT
                     )}
                   </div>
 
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                     <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl border shadow-xs ${
                       isClient 
                         ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
@@ -201,6 +206,37 @@ export const ClientHubView = ({ onOpenVault, onOpenNewClientModal, onOpenCreateT
                     }`}>
                       {project.budget}
                     </span>
+
+                    {/* Super Admin Edit & Delete Actions */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <button
+                          type="button"
+                          title="Edit Project Specifications (Super Admin)"
+                          onClick={() => {
+                            sound.playPop();
+                            setEditingProject(project);
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          title="Delete Project (Super Admin)"
+                          onClick={() => {
+                            sound.playPop();
+                            if (window.confirm(`Are you sure you want to permanently delete project "${project.name}"? This action cannot be undone.`)) {
+                              deleteClientProject(project.id);
+                            }
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -494,6 +530,18 @@ export const ClientHubView = ({ onOpenVault, onOpenNewClientModal, onOpenCreateT
           );
         })}
       </div>
+
+      {/* Super Admin Edit Project Modal */}
+      {editingProject && (
+        <EditClientModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onDelete={async (id) => {
+            await deleteClientProject(id);
+            setEditingProject(null);
+          }}
+        />
+      )}
 
     </div>
   );

@@ -1241,6 +1241,36 @@ export const PortalProvider = ({ children }) => {
     }
   };
 
+  const updateClientProject = async (projectId, updateData) => {
+    try {
+      const res = await apiClient.put(`/clients/${projectId}`, updateData);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Project Updated', res.data.message || 'Project updated successfully.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to update project.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
+  const deleteClientProject = async (projectId) => {
+    try {
+      const res = await apiClient.delete(`/clients/${projectId}`);
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Project Deleted', res.data.message || 'Project deleted successfully.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      showToast('Error', err.response?.data?.message || 'Failed to delete project.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
   const addCredential = async (projectId, credData) => {
     try {
       const res = await apiClient.post(`/clients/${projectId}/credentials`, credData);
@@ -1696,6 +1726,8 @@ export const PortalProvider = ({ children }) => {
         reviewExtension,
         toggleBlocker,
         createClientProject,
+        updateClientProject,
+        deleteClientProject,
         approveClientProject,
         rejectClientProject,
         addCredential,

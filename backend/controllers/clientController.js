@@ -565,3 +565,111 @@ exports.toggleChecklist = async (req, res) => {
     project
   });
 };
+
+// @desc Super Admin Updates a Project
+// @route PUT /api/clients/:id
+exports.updateClientProject = async (req, res) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only Super Admin can edit projects.' });
+  }
+
+  const { id } = req.params;
+  const { name, clientName, brand, domain, budget, category, scope, leadFounder, status } = req.body;
+
+  const store = getStore();
+  const project = store.clientProjects.find(p => p.id === id);
+
+  if (!project) {
+    return res.status(404).json({ success: false, message: 'Project not found.' });
+  }
+
+  if (name) project.name = name.trim();
+  if (clientName !== undefined) project.clientName = clientName.trim();
+  if (brand) project.brand = brand.trim();
+  if (domain !== undefined) project.domain = domain.trim();
+  if (budget !== undefined) project.budget = budget.trim();
+  if (category !== undefined) project.category = category.trim();
+  if (scope !== undefined) project.scope = scope;
+  if (leadFounder) project.leadFounder = leadFounder;
+  if (status) project.status = status;
+
+  project.updatedAt = new Date().toISOString();
+  project.updatedBy = req.user.name;
+
+  const audit = {
+    id: `log_${Date.now()}`,
+    action: 'PROJECT_UPDATED',
+    details: `Super Admin updated project "${project.name}" details.`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  if (!store.auditLogs) store.auditLogs = [];
+  store.auditLogs.unshift(audit);
+
+  saveStore(store);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_activity', audit);
+    io.emit('projects_updated', store.clientProjects);
+  }
+
+  res.json({
+    success: true,
+    message: `Project "${project.name}" updated successfully.`,
+    project
+  });
+};
+
+// @desc Super Admin Deletes a Project
+// @route DELETE /api/clients/:id
+exports.deleteClientProject = async (req, res) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ success: false, message: 'Only Super Admin can delete projects.' });
+  }
+
+  const { id } = req.params;
+  const store = getStore();
+  const index = store.clientProjects.findIndex(p => p.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Project not found.' });
+  }
+
+  const deletedProject = store.clientProjects[index];
+  store.clientProjects.splice(index, 1);
+
+  // If any tasks were linked to this project, detach or move to general sprint
+  if (Array.isArray(store.tasks)) {
+    store.tasks.forEach(t => {
+      if (t.projectId === id) {
+        t.projectId = 'proj_general';
+      }
+    });
+  }
+
+  const audit = {
+    id: `log_${Date.now()}`,
+    action: 'PROJECT_DELETED',
+    details: `Super Admin deleted project "${deletedProject.name}" (${deletedProject.clientName}).`,
+    actor: req.user.name,
+    timestamp: new Date().toISOString()
+  };
+  if (!store.auditLogs) store.auditLogs = [];
+  store.auditLogs.unshift(audit);
+
+  saveStore(store);
+
+  const io = req.io || req.app?.get('io');
+  if (io) {
+    io.emit('new_activity', audit);
+    io.emit('projects_updated', store.clientProjects);
+    io.emit('tasks_updated', store.tasks);
+  }
+
+  res.json({
+    success: true,
+    message: `Project "${deletedProject.name}" deleted successfully.`
+  });
+};
+

@@ -7,6 +7,8 @@ router.get('/', authenticate, clientController.getClientProjects);
 router.post('/', authenticate, clientController.createClientProject);
 router.post('/:id/approve', authenticate, requireAdmin, clientController.approveClientProject);
 router.post('/:id/reject', authenticate, requireAdmin, clientController.rejectClientProject);
+router.put('/:id', authenticate, requireAdmin, clientController.updateClientProject);
+router.delete('/:id', authenticate, requireAdmin, clientController.deleteClientProject);
 router.post('/:id/pipeline-stage', authenticate, clientController.addPipelineStage);
 router.post('/:id/credentials', authenticate, clientController.addCredential);
 router.post('/:id/credentials/:credId/approve', authenticate, requireAdmin, clientController.approveCredential);
