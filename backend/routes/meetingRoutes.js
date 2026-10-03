@@ -7,6 +7,7 @@ router.get('/', authenticate, meetingController.getAllMeetings);
 router.get('/current', authenticate, meetingController.getCurrentMeeting);
 router.post('/schedule', authenticate, meetingController.scheduleMeeting);
 router.post('/host-submit', authenticate, meetingController.hostSubmit);
+router.post('/submit-link', authenticate, meetingController.submitMeetingLink);
 router.post('/rsvp', authenticate, meetingController.confirmRsvp);
 router.post('/cancel', authenticate, meetingController.cancelMeeting);
 

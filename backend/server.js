@@ -66,6 +66,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const activityRoutes = require('./routes/activityRoutes');
+const meetingController = require('./controllers/meetingController');
 
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
@@ -155,4 +156,13 @@ server.listen(PORT, () => {
   console.log(`🌐 API Endpoint: http://localhost:${PORT}/api/health`);
   console.log(`👥 Operating for: Weblets® × StackAdda™ Founders`);
   console.log(`====================================================`);
+
+  // Start Meeting & Rule 06 Real-Time Watchdog (every 15 seconds)
+  setInterval(() => {
+    try {
+      meetingController.runMeetingWatchdog(io);
+    } catch (err) {
+      console.error('Watchdog cycle error:', err);
+    }
+  }, 15000);
 });

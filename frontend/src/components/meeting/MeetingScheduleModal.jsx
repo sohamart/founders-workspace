@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortal } from '../../context/PortalContext';
-import { X, Calendar, Clock, Link as LinkIcon, User, Sparkles, ShieldAlert, Video } from 'lucide-react';
+import { X, Calendar, Clock, User, Sparkles, Video, Lock, ShieldCheck } from 'lucide-react';
 import { sound } from '../../utils/soundFx';
+import { toLocalDatetimeInputValue, toUtcIsoString, formatDateTime } from '../../utils/formatters';
 
 export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeeting = null }) => {
   const { 
@@ -23,34 +24,40 @@ export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeetin
   const [delegatedHostId, setDelegatedHostId] = useState(
     isAdmin ? (meetingToEdit?.hostId || '') : currentUser?.id
   );
-  const [hostDeadline, setHostDeadline] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [meetLink, setMeetLink] = useState(meetingToEdit?.meetLink || 'https://meet.google.com/');
+  const [hostDeadline, setHostDeadline] = useState(
+    toLocalDatetimeInputValue(meetingToEdit?.hostDeadline)
+  );
+  const [scheduledTime, setScheduledTime] = useState(
+    toLocalDatetimeInputValue(meetingToEdit?.scheduledTime)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const activeFounders = founders.filter(f => f.role === 'founder' && f.status === 'active');
+  const isDateFixedByAdmin = Boolean(meetingToEdit?.dateFixedByAdmin && !isAdmin);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     if (isHostMode) {
-      // Host founder submits date and link
-      await hostSubmitMeeting({
+      // Host founder submits date (if not locked by admin) and agenda
+      const submitPayload = {
         meetingId: meetingToEdit?.id,
-        scheduledTime,
-        meetLink,
+        scheduledTime: isDateFixedByAdmin 
+          ? meetingToEdit.scheduledTime 
+          : toUtcIsoString(scheduledTime),
         agenda
-      });
+      };
+      await hostSubmitMeeting(submitPayload);
     } else {
       // Admin delegates host OR founder schedules with themselves as host
+      // Note: meeting link cannot be set during scheduling (Rule 06 protocol)
       const res = await scheduleMeeting({
         title,
         agenda,
         delegatedHostId: isAdmin ? delegatedHostId : currentUser?.id,
-        hostDeadline: isAdmin ? hostDeadline : null,
-        scheduledTime,
-        meetLink
+        hostDeadline: isAdmin ? toUtcIsoString(hostDeadline) : null,
+        scheduledTime: toUtcIsoString(scheduledTime)
       });
       if (res && res.success === false) {
         setIsSubmitting(false);
@@ -78,9 +85,9 @@ export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeetin
             </h3>
             <p className="text-[11px] text-slate-500">
               {isHostMode 
-                ? 'Input meeting date, time, and Google Meet/Zoom URL' 
+                ? 'Review agenda and meeting timing (locked if admin-assigned)' 
                 : isAdmin 
-                ? 'Delegate host founder with deadline or schedule directly' 
+                ? 'Assign host founder and deadline (optional date locking)' 
                 : 'Host locked to your account • Queues to top banner automatically'}
             </p>
           </div>
@@ -147,13 +154,14 @@ export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeetin
                 </div>
 
                 <div>
-                  <span className="text-slate-600 text-[10px] block mb-1 font-semibold">Host Submission Deadline (Optional)</span>
+                  <span className="text-slate-600 text-[10px] block mb-1 font-semibold">Host Submission Deadline</span>
                   <input
                     type="datetime-local"
                     value={hostDeadline}
                     onChange={(e) => setHostDeadline(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-orange-500 focus:outline-none"
                   />
+                  <span className="text-[9px] text-slate-400 mt-0.5 block">Automated strike triggers if host misses this</span>
                 </div>
               </div>
             </div>
@@ -185,42 +193,74 @@ export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeetin
             </div>
           ) : null}
 
-          {/* Date, Time & Meeting Link */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+          {/* Date & Time Section */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-bold text-slate-700 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
                 <span>Meeting Date & Time</span>
               </label>
-              <input
-                type="datetime-local"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                required={isHostMode || !isAdmin}
-                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50/50 font-medium"
-              />
+              {isDateFixedByAdmin && (
+                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                  <Lock className="w-3 h-3 text-amber-700" />
+                  <span>Fixed by Super Admin</span>
+                </span>
+              )}
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Video className="w-3.5 h-3.5 text-slate-500" />
-                <span>Meet / Zoom URL</span>
-              </label>
-              <input
-                type="url"
-                value={meetLink}
-                onChange={(e) => setMeetLink(e.target.value)}
-                placeholder="https://meet.google.com/..."
-                required={isHostMode || !isAdmin}
-                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50/50 font-mono text-[11px]"
-              />
+            {isDateFixedByAdmin ? (
+              <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1">
+                <div className="font-bold font-mono text-amber-900 text-xs flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                  <span>{meetingToEdit?.scheduledTime ? formatDateTime(meetingToEdit.scheduledTime) : ''}</span>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Super Admin assigned the official date and time for this strategic call. As Host, you cannot modify this date.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  required={isHostMode || !isAdmin}
+                  className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:outline-none bg-slate-50/50 font-medium"
+                />
+                {isAdmin && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    If set by Admin, this date becomes locked and the host founder cannot alter it.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Link Security Protocol Banner (Links cannot be pasted during scheduling) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                <Video className="w-3.5 h-3.5 text-orange-600" />
+                <span>Live Link Security Protocol</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
+                🔒 Opens 5m Before Call
+              </span>
             </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Meeting links cannot be pasted in advance during scheduling. The designated host will receive an unlocked 10-minute link paste window exactly 5 minutes before scheduled call time.
+            </p>
           </div>
 
           {/* Rule 06 Reminder */}
           <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed flex items-start gap-2">
-            <span className="shrink-0 text-amber-600 font-bold">📋 Rule 06:</span>
-            <span>Meeting Host holds end-to-end responsibility. Multiple meetings are queued chronologically, and the earliest upcoming call populates the live workspace banner automatically.</span>
+            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-amber-800">Rule 06 Governance: </span>
+              <span>
+                Meeting Host holds end-to-end responsibility. If the host fails to paste the live meeting link within the 10-minute window (5m before to 5m after meeting time), an automatic disciplinary warning strike will be issued.
+              </span>
+            </div>
           </div>
         </form>
 
@@ -236,7 +276,7 @@ export const MeetingScheduleModal = ({ onClose, isHostMode = false, targetMeetin
               {isSubmitting 
                 ? 'Processing...' 
                 : isHostMode 
-                ? 'Finalize Meeting & Update Top Banner 📡' 
+                ? 'Confirm Meeting Details & Queue 📡' 
                 : 'Schedule Meeting & Queue to Banner 🚀'}
             </span>
           </button>

@@ -629,58 +629,119 @@ Welcome aboard! Let's build with speed, accountability, and excellence.`;
           </div>
         )}
 
-        <form onSubmit={handleIssueStrike} className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Target Founder</label>
-            <select
-              value={selectedFounderId}
-              onChange={(e) => setSelectedFounderId(e.target.value)}
-              required
-              className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white focus:ring-2 focus:ring-red-500 focus:outline-none font-medium"
-            >
-              <option value="">Select founder...</option>
-              {founders.filter(f => f.role === 'founder').map(f => (
-                <option key={f.id} value={f.id}>{f.name} ({f.strikes} active strikes)</option>
-              ))}
-            </select>
+        <form onSubmit={handleIssueStrike} className="space-y-3 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Target Founder</label>
+              <select
+                value={selectedFounderId}
+                onChange={(e) => setSelectedFounderId(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white focus:ring-2 focus:ring-red-500 focus:outline-none font-medium"
+              >
+                <option value="">Select founder...</option>
+                {founders.filter(f => f.role === 'founder').map(f => (
+                  <option key={f.id} value={f.id}>{f.name} ({f.strikes} active strikes)</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Violated Rule</label>
+              <select
+                value={strikeRule}
+                onChange={(e) => setStrikeRule(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white font-mono focus:ring-2 focus:ring-red-500 focus:outline-none"
+              >
+                <option value="01">Rule 01: Meeting Attendance</option>
+                <option value="02">Rule 02: Communication & Calls</option>
+                <option value="03">Rule 03: Tasks & Deadlines</option>
+                <option value="05">Rule 05: Active Presence</option>
+                <option value="06">Rule 06: Meeting Misbehavior & Non-Responsibility</option>
+                <option value="09">Rule 09: Domain Shared Expenses</option>
+                <option value="16">Rule 16: Device & Access Security</option>
+                <option value="26">Rule 26: General Violation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Violation Justification / Cause</label>
+              <input
+                type="text"
+                list="strike-causes"
+                value={strikeReason}
+                onChange={(e) => setStrikeReason(e.target.value)}
+                placeholder="Select preset or enter reason..."
+                required
+                className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white focus:ring-2 focus:ring-red-500 focus:outline-none font-medium"
+              />
+              <datalist id="strike-causes">
+                <option value="Meeting misbehavior and non responsibility" />
+                <option value="Missed 10-minute meeting link paste window (Rule 06)" />
+                <option value="Unnotified absence or repeated lateness" />
+                <option value="Unresponsive to urgent calls / ignoring communication" />
+                <option value="Missed deliverable without prior communication" />
+              </datalist>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold transition-all shadow-md shadow-red-600/30 cursor-pointer"
+              >
+                Dispatch Formal Strike 🚨
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Violated Rule</label>
-            <select
-              value={strikeRule}
-              onChange={(e) => setStrikeRule(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white font-mono focus:ring-2 focus:ring-red-500 focus:outline-none"
-            >
-              <option value="01">Rule 01: Meeting Attendance</option>
-              <option value="02">Rule 02: Communication & Calls</option>
-              <option value="03">Rule 03: Tasks & Deadlines</option>
-              <option value="05">Rule 05: Active Presence</option>
-              <option value="06">Rule 06: Meeting Host Ownership</option>
-              <option value="09">Rule 09: Domain Shared Expenses</option>
-              <option value="16">Rule 16: Device & Access Security</option>
-              <option value="26">Rule 26: General Violation</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Violation Justification</label>
-            <input
-              type="text"
-              value={strikeReason}
-              onChange={(e) => setStrikeReason(e.target.value)}
-              placeholder="e.g. Unnotified absence / delayed commit"
-              required
-              className="w-full px-3 py-2 rounded-xl border border-red-200 bg-white focus:ring-2 focus:ring-red-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="flex items-end">
+          {/* Quick-Fill Presets including requested cause */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider shrink-0">
+              Quick Cause Presets:
+            </span>
             <button
-              type="submit"
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold transition-all shadow-md shadow-red-600/30 cursor-pointer"
+              type="button"
+              onClick={() => {
+                setStrikeRule('06');
+                setStrikeReason('Meeting misbehavior and non responsibility');
+                sound.playPop();
+              }}
+              className="px-2.5 py-1 rounded-lg bg-red-100/80 hover:bg-red-200 text-red-900 border border-red-300 font-bold text-[10px] transition-colors cursor-pointer"
             >
-              Dispatch Formal Strike 🚨
+              ★ Meeting misbehavior and non responsibility
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStrikeRule('06');
+                setStrikeReason('Missed 10-minute meeting link window (Rule 06)');
+                sound.playPop();
+              }}
+              className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] transition-colors cursor-pointer"
+            >
+              Missed link window (Rule 06)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStrikeRule('01');
+                setStrikeReason('Unnotified absence or repeated lateness in scheduled sync');
+                sound.playPop();
+              }}
+              className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] transition-colors cursor-pointer"
+            >
+              Meeting absence / late
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStrikeRule('02');
+                setStrikeReason('Unresponsive to urgent operational calls or messages');
+                sound.playPop();
+              }}
+              className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] transition-colors cursor-pointer"
+            >
+              Ignoring calls / messages
             </button>
           </div>
         </form>

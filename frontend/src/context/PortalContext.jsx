@@ -1386,6 +1386,22 @@ export const PortalProvider = ({ children }) => {
     }
   };
 
+  const submitMeetingLink = async (meetingId, meetLink) => {
+    try {
+      const res = await apiClient.post('/meetings/submit-link', { meetingId, meetLink });
+      if (res.data.success) {
+        sound.playChime();
+        showToast('Link Activated 🟢', res.data.message || 'Meeting link published. Join button is now active.', 'success');
+        refreshData();
+        return { success: true };
+      }
+    } catch (err) {
+      sound.playWarning();
+      showToast('Submission Rejected', err.response?.data?.message || 'Failed to submit meeting link.', 'error');
+      return { success: false, message: err.response?.data?.message };
+    }
+  };
+
   const cancelMeeting = async (meetingId = null) => {
     try {
       const res = await apiClient.post('/meetings/cancel', { meetingId });
@@ -1735,6 +1751,7 @@ export const PortalProvider = ({ children }) => {
         revealCredential,
         scheduleMeeting,
         hostSubmitMeeting,
+        submitMeetingLink,
         confirmMeetingRsvp,
         cancelMeeting,
         sendMessage,

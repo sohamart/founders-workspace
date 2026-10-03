@@ -19,11 +19,13 @@ import {
   X,
   History,
   Lock,
-  Users
+  Users,
+  Link as LinkIcon
 } from 'lucide-react';
-import { formatCountdown, formatDateTime } from '../../utils/formatters';
+import { formatCountdown, formatDateTime, getMeetingLinkWindowStatus } from '../../utils/formatters';
 import { sound } from '../../utils/soundFx';
 import { MeetingScheduleModal } from './MeetingScheduleModal';
+import { MeetingLinkPasteModal } from './MeetingLinkPasteModal';
 
 export const MeetingsView = () => {
   const { 
@@ -38,8 +40,15 @@ export const MeetingsView = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleHostMode, setScheduleHostMode] = useState(false);
   const [selectedMeetingForHostSubmit, setSelectedMeetingForHostSubmit] = useState(null);
+  const [selectedMeetingForPasteLink, setSelectedMeetingForPasteLink] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming'); // upcoming | past
   const [isProcessingId, setIsProcessingId] = useState(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isAdmin = currentUser?.role === 'superadmin';
 
@@ -223,23 +232,81 @@ export const MeetingsView = () => {
                   className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Finalize Date & Meet Link (Host Mode)</span>
+                  <span>Confirm Schedule (Host Mode)</span>
                 </button>
               ) : null}
 
-              {/* Join Link Button */}
-              {meeting.meetLink && (
-                <a
-                  href={meeting.meetLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => sound.playChime()}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                >
-                  <Video className="w-4 h-4" />
-                  <span>Join Video Call</span>
-                </a>
-              )}
+              {/* Join Link / Paste Link / Coming Soon */}
+              {(() => {
+                if (meeting.status === 'pending_host_submission') return null;
+                const win = getMeetingLinkWindowStatus(meeting.scheduledTime, meeting.meetLink);
+                const isHost = meeting.hostId === currentUser?.id;
+
+                if (win.hasLink) {
+                  return (
+                    <a
+                      href={meeting.meetLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => sound.playChime()}
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Join Video Call</span>
+                    </a>
+                  );
+                }
+
+                if (win.canSubmit && (isHost || isAdmin)) {
+                  return (
+                    <button
+                      onClick={() => {
+                        sound.playPop();
+                        setSelectedMeetingForPasteLink(meeting);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-xs shadow-md shadow-orange-600/30 animate-pulse transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <LinkIcon className="w-4 h-4" />
+                      <span>Paste Meeting Link ({win.timerLabel} left)</span>
+                    </button>
+                  );
+                }
+
+                if (win.status === 'locked') {
+                  return (
+                    <div className="w-full py-2.5 px-4 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 font-semibold text-xs flex flex-col items-center justify-center gap-0.5 cursor-not-allowed select-none">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Join Call (Coming Soon)</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {isHost ? 'Link window opens 5m before call' : 'Unlocks 5m before meeting once host submits'}
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (win.status === 'expired') {
+                  return (
+                    <div className="w-full py-2 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs flex items-center justify-between gap-1">
+                      <span className="flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Link Overdue (Strike Issued)</span>
+                      </span>
+                      {isAdmin && (
+                        <button
+                          onClick={() => setSelectedMeetingForPasteLink(meeting)}
+                          className="px-2 py-0.5 rounded-lg bg-rose-600 text-white text-[10px] hover:bg-rose-700 cursor-pointer"
+                        >
+                          Override Link
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
 
               {/* RSVP Button */}
               {(() => {
@@ -431,17 +498,47 @@ export const MeetingsView = () => {
 
                       {/* Right: Actions */}
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        {m.meetLink && (
-                          <a
-                            href={m.meetLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Video className="w-3.5 h-3.5" />
-                            <span>Join Call</span>
-                          </a>
-                        )}
+                        {(() => {
+                          if (m.status === 'pending_host_submission') return null;
+                          const mWin = getMeetingLinkWindowStatus(m.scheduledTime, m.meetLink);
+                          const isHost = m.hostId === currentUser?.id;
+
+                          if (mWin.hasLink) {
+                            return (
+                              <a
+                                href={m.meetLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Video className="w-3.5 h-3.5" />
+                                <span>Join Call</span>
+                              </a>
+                            );
+                          }
+
+                          if (mWin.canSubmit && (isHost || isAdmin)) {
+                            return (
+                              <button
+                                onClick={() => setSelectedMeetingForPasteLink(m)}
+                                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 text-white font-bold text-xs shadow-sm animate-pulse transition-all flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <LinkIcon className="w-3.5 h-3.5" />
+                                <span>Paste Link ({mWin.timerLabel})</span>
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <div 
+                              title="Link paste window unlocks 5m before meeting"
+                              className="py-2 px-3 rounded-xl bg-slate-100 text-slate-400 font-semibold text-xs flex items-center gap-1 cursor-not-allowed select-none"
+                            >
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Coming Soon</span>
+                            </div>
+                          );
+                        })()}
 
                         <button
                           onClick={() => handleRsvp(m.id)}
@@ -531,6 +628,14 @@ export const MeetingsView = () => {
           }}
           isHostMode={scheduleHostMode}
           targetMeeting={selectedMeetingForHostSubmit}
+        />
+      )}
+
+      {/* Paste Link Modal */}
+      {selectedMeetingForPasteLink && (
+        <MeetingLinkPasteModal
+          targetMeeting={selectedMeetingForPasteLink}
+          onClose={() => setSelectedMeetingForPasteLink(null)}
         />
       )}
 
