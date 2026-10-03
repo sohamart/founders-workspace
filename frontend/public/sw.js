@@ -33,8 +33,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass API requests directly to network
-  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
+  // Pass API requests, socket.io, and non-GET requests directly to network
+  if (
+    event.request.url.includes('/api/') || 
+    event.request.url.includes('/socket.io/') ||
+    event.request.method !== 'GET'
+  ) {
     return;
   }
 
@@ -50,12 +54,16 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse;
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
+      .catch(async () => {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) return cachedResponse;
+        if (event.request.mode === 'navigate') {
+          const indexCached = await caches.match('/index.html');
+          if (indexCached) return indexCached;
+        }
+        return new Response('Network unavailable. Retrying...', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' }
         });
       })
   );

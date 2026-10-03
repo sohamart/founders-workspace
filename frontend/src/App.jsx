@@ -70,202 +70,189 @@ const MainPortal = () => {
     }
   }, [isAuthenticated, mustOnboard, isSuspended]);
 
-  // Gate 0: Wait for initial settings check so Coming Soon never flickers on boot
-  if (!isSettingsLoaded) {
-    return <SplashScreen onFinish={() => {}} />;
-  }
+  let activeScreen = null;
 
-  // 1. Gate 1: Coming Soon Gateway with Passcode / Admin Bypass
   if (!isBypassed) {
-    return <ComingSoonModal />;
-  }
+    activeScreen = <ComingSoonModal />;
+  } else if (!isAuthenticated) {
+    activeScreen = <LoginModal />;
+  } else if (isSuspended) {
+    activeScreen = <SuspendedScreen />;
+  } else if (mustOnboard) {
+    activeScreen = <OnboardingModal />;
+  } else if (currentTab === 'chat') {
+    activeScreen = <TeamChatView />;
+  } else {
+    activeScreen = (
+      <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden antialiased selection:bg-orange-100 selection:text-orange-950 font-sans">
+        {/* Desktop Fixed Full-Height Glassmorphic Sidebar */}
+        <DesktopSidebar />
 
-  // 2. Gate 2: Authentication
-  if (!isAuthenticated) {
-    return <LoginModal />;
-  }
+        {/* Right Main Application Workspace */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Main Top Header Bar (Natural top navigation) */}
+          <HeaderBar 
+            onOpenNotifications={() => setShowNotifications(true)} 
+            onStartTour={() => setShowTour(prev => !prev)}
+          />
 
-  // 3. Gate 3: 2-Strike Automated Suspension Lockout Screen
-  if (isSuspended) {
-    return <SuspendedScreen />;
-  }
+          {/* Sleek Strategic Meeting Banner (if scheduled) */}
+          <MeetingBanner
+            onOpenHostModal={() => {
+              setIsMeetingHostMode(true);
+              setShowMeetingModal(true);
+            }}
+            onOpenScheduleModal={() => {
+              setIsMeetingHostMode(false);
+              setShowMeetingModal(true);
+            }}
+          />
 
-  // 4. Gate 4: First-time Onboarding Wizard (Permanent Password, Avatar, Rules Briefing)
-  if (mustOnboard) {
-    return <OnboardingModal />;
-  }
+          {/* Compact & Dismissible Disciplinary Warning Banner (renders if current founder has strikes) */}
+          <StrikeAlertBanner />
 
-  // 5. Special Mode: 100% Full-Screen WhatsApp Chat (Dock is hidden, zero distraction)
-  if (currentTab === 'chat') {
-    return <TeamChatView />;
-  }
+          {/* Central Scrollable Work Canvas - ONLY THIS AREA SCROLLS */}
+          <main className="flex-1 h-full p-4 md:p-6 pb-28 md:pb-8 overflow-y-auto overflow-x-hidden">
+            {currentTab === 'profile' && <ProfileView />}
 
-  return (
-    <div className="h-screen bg-slate-50 text-slate-800 flex overflow-hidden antialiased selection:bg-orange-100 selection:text-orange-950 font-sans">
-      
-      {/* Desktop Fixed Full-Height Glassmorphic Sidebar */}
-      <DesktopSidebar />
+            {currentTab === 'dashboard' && (
+              <DashboardView
+                onOpenCreateTask={() => setShowCreateTask(true)}
+                onOpenNewClient={() => setShowNewClient(true)}
+              />
+            )}
 
-      {/* Right Main Application Workspace */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        
-        {/* Main Top Header Bar (Natural top navigation) */}
-        <HeaderBar 
-          onOpenNotifications={() => setShowNotifications(true)} 
-          onStartTour={() => setShowTour(prev => !prev)}
-        />
+            {currentTab === 'tasks' && (
+              <TaskListView
+                onSelectTask={(task) => setSelectedTask(task)}
+                onOpenCreateModal={() => setShowCreateTask(true)}
+              />
+            )}
 
-        {/* Sleek Strategic Meeting Banner (if scheduled) */}
-        <MeetingBanner
-          onOpenHostModal={() => {
-            setIsMeetingHostMode(true);
-            setShowMeetingModal(true);
-          }}
+            {currentTab === 'projects' && (
+              <ClientHubView
+                onOpenVault={(project) => setVaultProject(project)}
+                onOpenNewClientModal={() => setShowNewClient(true)}
+                onOpenCreateTaskUnderProject={(projId) => {
+                  setCreateTaskProjectId(projId);
+                  setShowCreateTask(true);
+                }}
+              />
+            )}
+
+            {currentTab === 'meetings' && <MeetingsView />}
+
+            {currentTab === 'requests' && <RequestsView />}
+
+            {currentTab === 'rules' && <RulesBookView />}
+
+            {currentTab === 'admin' && <AdminCommandView />}
+
+            {![
+              'profile',
+              'dashboard',
+              'tasks',
+              'projects',
+              'meetings',
+              'requests',
+              'rules',
+              'admin'
+            ].includes(currentTab) && (
+              <NotFoundView onGoHome={() => setCurrentTab('dashboard')} />
+            )}
+          </main>
+        </div>
+
+        {/* Floating Mobile Dock with Center Plus Button & More Drawer */}
+        <MobileDock 
+          onOpenCreateTask={() => setShowCreateTask(true)}
+          onOpenNewClient={() => setShowNewClient(true)}
           onOpenScheduleModal={() => {
             setIsMeetingHostMode(false);
             setShowMeetingModal(true);
           }}
         />
 
-        {/* Compact & Dismissible Disciplinary Warning Banner (renders if current founder has strikes) */}
-        <StrikeAlertBanner />
+        {/* Modals & Overlays */}
+        {selectedTask && (
+          <TaskDetailModal
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onOpenProofReview={(t, req) => {
+              setSelectedTask(null);
+              setReviewProofData({ task: t, request: req });
+            }}
+            onOpenTransferModal={(t) => {
+              setSelectedTask(null);
+              setShowTransferTask(t);
+            }}
+          />
+        )}
 
-        {/* Central Scrollable Work Canvas - ONLY THIS AREA SCROLLS */}
-        <main className="flex-1 h-full p-4 md:p-6 pb-28 md:pb-8 overflow-y-auto overflow-x-hidden">
-          {currentTab === 'profile' && <ProfileView />}
+        {showCreateTask && (
+          <TaskCreateModal 
+            initialProjectId={createTaskProjectId}
+            onClose={() => {
+              setShowCreateTask(false);
+              setCreateTaskProjectId(null);
+            }} 
+          />
+        )}
 
-          {currentTab === 'dashboard' && (
-            <DashboardView
-              onOpenCreateTask={() => setShowCreateTask(true)}
-              onOpenNewClient={() => setShowNewClient(true)}
-            />
-          )}
+        {showTransferTask && (
+          <TaskTransferModal
+            task={showTransferTask}
+            onClose={() => setShowTransferTask(null)}
+          />
+        )}
 
-          {currentTab === 'tasks' && (
-            <TaskListView
-              onSelectTask={(task) => setSelectedTask(task)}
-              onOpenCreateModal={() => setShowCreateTask(true)}
-            />
-          )}
+        {reviewProofData && (
+          <AdminProofReview
+            task={reviewProofData.task}
+            request={reviewProofData.request}
+            onClose={() => setReviewProofData(null)}
+          />
+        )}
 
-          {currentTab === 'projects' && (
-            <ClientHubView
-              onOpenVault={(project) => setVaultProject(project)}
-              onOpenNewClientModal={() => setShowNewClient(true)}
-              onOpenCreateTaskUnderProject={(projId) => {
-                setCreateTaskProjectId(projId);
-                setShowCreateTask(true);
-              }}
-            />
-          )}
+        {vaultProject && (
+          <ClientVaultModal
+            project={vaultProject}
+            onClose={() => setVaultProject(null)}
+          />
+        )}
 
-          {currentTab === 'meetings' && <MeetingsView />}
+        {showNewClient && (
+          <NewClientModal onClose={() => setShowNewClient(false)} />
+        )}
 
-          {currentTab === 'requests' && <RequestsView />}
+        {showMeetingModal && (
+          <MeetingScheduleModal
+            isHostMode={isMeetingHostMode}
+            onClose={() => setShowMeetingModal(false)}
+          />
+        )}
 
-          {currentTab === 'rules' && <RulesBookView />}
+        {showNotifications && (
+          <NotificationDrawer onClose={() => setShowNotifications(false)} />
+        )}
 
-          {currentTab === 'admin' && <AdminCommandView />}
-
-          {![
-            'profile',
-            'dashboard',
-            'tasks',
-            'projects',
-            'meetings',
-            'requests',
-            'rules',
-            'admin'
-          ].includes(currentTab) && (
-            <NotFoundView onGoHome={() => setCurrentTab('dashboard')} />
-          )}
-        </main>
+        {/* Interactive Website Guided Tour Modal */}
+        <WorkspaceTourModal
+          isOpen={showTour}
+          onClose={() => setShowTour(false)}
+        />
       </div>
+    );
+  }
 
-      {/* Floating Mobile Dock with Center Plus Button & More Drawer */}
-      <MobileDock 
-        onOpenCreateTask={() => setShowCreateTask(true)}
-        onOpenNewClient={() => setShowNewClient(true)}
-        onOpenScheduleModal={() => {
-          setIsMeetingHostMode(false);
-          setShowMeetingModal(true);
-        }}
-      />
-
-      {/* Modals & Overlays */}
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          onClose={() => setSelectedTask(null)}
-          onOpenProofReview={(t, req) => {
-            setSelectedTask(null);
-            setReviewProofData({ task: t, request: req });
-          }}
-          onOpenTransferModal={(t) => {
-            setSelectedTask(null);
-            setShowTransferTask(t);
-          }}
-        />
-      )}
-
-      {showCreateTask && (
-        <TaskCreateModal 
-          initialProjectId={createTaskProjectId}
-          onClose={() => {
-            setShowCreateTask(false);
-            setCreateTaskProjectId(null);
-          }} 
-        />
-      )}
-
-      {showTransferTask && (
-        <TaskTransferModal
-          task={showTransferTask}
-          onClose={() => setShowTransferTask(null)}
-        />
-      )}
-
-      {reviewProofData && (
-        <AdminProofReview
-          task={reviewProofData.task}
-          request={reviewProofData.request}
-          onClose={() => setReviewProofData(null)}
-        />
-      )}
-
-      {vaultProject && (
-        <ClientVaultModal
-          project={vaultProject}
-          onClose={() => setVaultProject(null)}
-        />
-      )}
-
-      {showNewClient && (
-        <NewClientModal onClose={() => setShowNewClient(false)} />
-      )}
-
-      {showMeetingModal && (
-        <MeetingScheduleModal
-          isHostMode={isMeetingHostMode}
-          onClose={() => setShowMeetingModal(false)}
-        />
-      )}
-
-      {showNotifications && (
-        <NotificationDrawer onClose={() => setShowNotifications(false)} />
-      )}
-
-      {/* Interactive Website Guided Tour Modal */}
-      <WorkspaceTourModal
-        isOpen={showTour}
-        onClose={() => setShowTour(false)}
-      />
-
-      {/* Luxury Minimalist Boot Splash Screen */}
+  return (
+    <>
+      {activeScreen}
+      {/* Luxury Minimalist Boot Splash Screen Overlay */}
       {showSplash && (
         <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
-    </div>
+    </>
   );
 };
 

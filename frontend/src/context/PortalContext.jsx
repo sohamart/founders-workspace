@@ -28,7 +28,7 @@ export const PortalProvider = ({ children }) => {
     } catch (e) {}
     return true; // Default true during initial boot check so Coming Soon never flickers
   });
-  const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
   const [mustOnboard, setMustOnboard] = useState(false);
 
