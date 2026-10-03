@@ -95,9 +95,41 @@ app.use('/notifications', notificationRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/activity', activityRoutes);
 
+// Track online users: userId -> Set of socket.id
+const activeOnlineUsers = new Map();
+
+const broadcastOnlineUsers = () => {
+  io.emit('online_users', Array.from(activeOnlineUsers.keys()));
+};
+
 // Socket.io Real-time Handlers
 io.on('connection', (socket) => {
   console.log(`⚡ Client connected via WebSocket: ${socket.id}`);
+
+  // Send current active user IDs immediately to connecting client
+  socket.emit('online_users', Array.from(activeOnlineUsers.keys()));
+
+  socket.on('user_online', (userId) => {
+    if (!userId) return;
+    socket.userId = userId;
+    if (!activeOnlineUsers.has(userId)) {
+      activeOnlineUsers.set(userId, new Set());
+    }
+    activeOnlineUsers.get(userId).add(socket.id);
+    broadcastOnlineUsers();
+  });
+
+  socket.on('user_offline', (userId) => {
+    const id = userId || socket.userId;
+    if (id && activeOnlineUsers.has(id)) {
+      const userSockets = activeOnlineUsers.get(id);
+      userSockets.delete(socket.id);
+      if (userSockets.size === 0) {
+        activeOnlineUsers.delete(id);
+      }
+      broadcastOnlineUsers();
+    }
+  });
 
   socket.on('join_room', (room) => {
     socket.join(room);
@@ -116,7 +148,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // client disconnected
+    if (socket.userId && activeOnlineUsers.has(socket.userId)) {
+      const userSockets = activeOnlineUsers.get(socket.userId);
+      userSockets.delete(socket.id);
+      if (userSockets.size === 0) {
+        activeOnlineUsers.delete(socket.userId);
+      }
+      broadcastOnlineUsers();
+    }
   });
 });
 

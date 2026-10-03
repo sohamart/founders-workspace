@@ -98,6 +98,7 @@ export const PortalProvider = ({ children }) => {
   const [rules, setRules] = useState([]);
   const [adminRatification, setAdminRatification] = useState(null);
   const [foundersSignatures, setFoundersSignatures] = useState([]);
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
   const [founders, setFounders] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [inactivityRadar, setInactivityRadar] = useState([]);
@@ -597,6 +598,15 @@ export const PortalProvider = ({ children }) => {
 
     socket.on('connect', () => {
       console.log('⚡ Real-time Socket.io connected:', socket.id);
+      if (currentUserRef.current?.id) {
+        socket.emit('user_online', currentUserRef.current.id);
+      }
+    });
+
+    socket.on('online_users', (userIds) => {
+      if (Array.isArray(userIds)) {
+        setOnlineUserIds(userIds);
+      }
     });
 
     socket.on('new_message', (newMsg) => {
@@ -758,6 +768,13 @@ export const PortalProvider = ({ children }) => {
     };
   }, [refreshData, toastNotificationOnce]);
 
+  // Sync online status when currentUser logs in or changes
+  useEffect(() => {
+    if (socketRef.current && socketRef.current.connected && currentUser?.id) {
+      socketRef.current.emit('user_online', currentUser.id);
+    }
+  }, [currentUser?.id]);
+
   // Total Unread Messages Count for current user across all conversations
   const unreadMessagesCount = messages.filter(m => 
     m.senderId !== currentUser?.id && 
@@ -892,6 +909,9 @@ export const PortalProvider = ({ children }) => {
   };
 
   const logout = () => {
+    if (socketRef.current && currentUserRef.current?.id) {
+      socketRef.current.emit('user_offline', currentUserRef.current.id);
+    }
     localStorage.removeItem('founders_token');
     localStorage.removeItem('founders_user');
     currentUserRef.current = null;
@@ -1705,6 +1725,7 @@ export const PortalProvider = ({ children }) => {
         adminRatification,
         foundersSignatures,
         founders,
+        onlineUserIds,
         auditLogs,
         inactivityRadar,
         securityFreeze,

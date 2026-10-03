@@ -589,6 +589,12 @@ function checkMeetingHostOverdue(store, io) {
             });
           }
         }
+
+        m.isCancelled = true;
+        m.status = 'cancelled';
+        m.cancelledBy = 'SYSTEM_WATCHDOG';
+        m.cancelledAt = new Date().toISOString();
+        m.cancellationReason = 'Host missed scheduling deadline (Rule 06 infraction)';
       }
     }
 
@@ -661,12 +667,26 @@ function checkMeetingHostOverdue(store, io) {
             io.emit('new_activity', strikeLog);
           }
         }
+
+        // Host failed to conduct meeting: Auto-cancel and remove meeting
+        m.isCancelled = true;
+        m.status = 'cancelled';
+        m.cancelledBy = 'SYSTEM_WATCHDOG';
+        m.cancelledAt = new Date().toISOString();
+        m.cancellationReason = 'Host failed to paste meeting link within 10-minute window (Rule 06 infraction)';
       }
     }
   }
 
   if (modified) {
+    // Clean up cancelled and invalid meetings so phantom/rescheduled meetings do not linger
+    store.meetings = store.meetings.filter(m => !m.isCancelled && m.status !== 'cancelled');
+    computeCurrentBannerMeeting(store);
     saveStore(store);
+    if (io) {
+      io.emit('MEETING_UPDATED', store.meeting);
+      io.emit('meetings_updated', store.meetings);
+    }
   }
   return modified;
 }

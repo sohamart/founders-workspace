@@ -26,7 +26,8 @@ export const TeamChatView = () => {
     setCurrentTab,
     founders,
     uploadFile,
-    markChatAsRead
+    markChatAsRead,
+    onlineUserIds = []
   } = usePortal();
 
   // Active chat: null for Group #founders-circle, or a founder object for 1-on-1 DM
@@ -40,6 +41,36 @@ export const TeamChatView = () => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+
+  // WhatsApp-style timestamp formatter
+  const formatChatTimestamp = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  // Group chat latest message and unread count
+  const groupMessages = messages.filter(m => !m.recipientId || m.channelId === 'group' || m.channelId === 'founders_group');
+  const lastGroupMsg = groupMessages.length > 0 ? groupMessages[groupMessages.length - 1] : null;
+  const groupUnreadCount = messages.filter(m => 
+    (!m.recipientId || m.channelId === 'group' || m.channelId === 'founders_group') &&
+    m.senderId !== currentUser?.id &&
+    m.status !== 'read'
+  ).length;
+
+  // Active online founders excluding self
+  const otherOnlineCount = (onlineUserIds || []).filter(id => id && id !== currentUser?.id).length;
 
   // Auto-grow textarea smoothly up to ~104px (about 4 lines) then stop and scroll
   const adjustTextareaHeight = () => {
@@ -190,21 +221,55 @@ export const TeamChatView = () => {
               selectedRecipient === null ? 'bg-orange-50/90 border-r-4 border-orange-600' : 'hover:bg-slate-50'
             }`}
           >
-            <div className="relative">
+            <div className="relative shrink-0">
               <div className="w-11 h-11 rounded-full bg-gradient-to-r from-orange-600 to-amber-600 text-white flex items-center justify-center font-bold shadow-xs">
                 <Users className="w-5 h-5" />
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
+              <span 
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors ${
+                  otherOnlineCount > 0 ? 'bg-emerald-500' : 'bg-slate-300'
+                }`} 
+                title={otherOnlineCount > 0 ? `${otherOnlineCount} online` : 'Offline'}
+              />
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-900 truncate">Founders Circle (Group)</h4>
-                <span className="text-[10px] text-orange-600 font-mono font-bold">Live</span>
+              <div className="flex items-center justify-between gap-1">
+                <h4 className={`text-xs truncate ${groupUnreadCount > 0 ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
+                  Founders Circle (Group)
+                </h4>
+                {lastGroupMsg ? (
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                    {formatChatTimestamp(lastGroupMsg.timestamp)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-orange-600 font-mono font-bold shrink-0">Live</span>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                All 3 Founders + SSA Lead Admin
-              </p>
+
+              <div className="flex items-center justify-between mt-1 gap-1">
+                <p className={`text-[11px] truncate flex-1 min-w-0 ${groupUnreadCount > 0 ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
+                  {lastGroupMsg ? (
+                    lastGroupMsg.senderId === 'system_governance' ? (
+                      <span className="text-rose-600 font-medium">🚨 Disciplinary Alert</span>
+                    ) : (
+                      <>
+                        <span className="text-slate-700 font-medium">
+                          {lastGroupMsg.senderId === currentUser?.id ? 'You: ' : `${(lastGroupMsg.senderName || 'Founder').split(' ')[0]}: `}
+                        </span>
+                        {lastGroupMsg.text || (lastGroupMsg.mediaUrl ? '📷 Photo/Media' : 'Sent an attachment')}
+                      </>
+                    )
+                  ) : (
+                    'All 3 Founders + SSA Lead Admin'
+                  )}
+                </p>
+                {groupUnreadCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-orange-600 text-white rounded-full min-w-4 text-center shrink-0 shadow-xs">
+                    {groupUnreadCount}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -218,6 +283,17 @@ export const TeamChatView = () => {
             .filter(c => c.name.toLowerCase().includes(searchDm.toLowerCase()))
             .map((contact) => {
               const isSelected = selectedRecipient?.id === contact.id;
+              const contactMessages = messages.filter(m => 
+                (m.senderId === contact.id && m.recipientId === currentUser?.id) ||
+                (m.senderId === currentUser?.id && m.recipientId === contact.id)
+              );
+              const lastContactMsg = contactMessages.length > 0 ? contactMessages[contactMessages.length - 1] : null;
+              const contactUnreadCount = messages.filter(m => 
+                m.senderId === contact.id && 
+                m.recipientId === currentUser?.id && 
+                m.status !== 'read'
+              ).length;
+              const isOnline = (onlineUserIds || []).includes(contact.id);
 
               return (
                 <div
@@ -231,28 +307,60 @@ export const TeamChatView = () => {
                     isSelected ? 'bg-orange-50/90 border-r-4 border-orange-600' : 'hover:bg-slate-50'
                   }`}
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <img 
                       src={contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
                       alt={contact.name} 
                       className="w-11 h-11 rounded-full object-cover ring-1 ring-slate-200 aspect-square" 
                     />
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
+                    <span 
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors ${
+                        isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                      }`} 
+                      title={isOnline ? 'Online' : 'Offline'}
+                    />
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-900 truncate flex items-center gap-1">
-                        <span>{contact.name}</span>
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className={`text-xs truncate flex items-center gap-1 ${
+                        contactUnreadCount > 0 ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'
+                      }`}>
+                        <span className="truncate">{contact.name}</span>
                         {contact.role === 'superadmin' && (
-                          <ShieldCheck className="w-3 h-3 text-orange-600" />
+                          <ShieldCheck className="w-3 h-3 text-orange-600 shrink-0" />
                         )}
                       </h4>
-                      <span className="text-[10px] font-medium text-orange-700 bg-orange-50 px-1.5 py-0.2 rounded border border-orange-200 font-mono">DM</span>
+                      {lastContactMsg ? (
+                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                          {formatChatTimestamp(lastContactMsg.timestamp)}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-medium text-orange-700 bg-orange-50 px-1.5 py-0.2 rounded border border-orange-200 font-mono shrink-0">DM</span>
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      {contact.designation || (contact.role === 'superadmin' ? 'Lead Admin' : 'Founder')}
-                    </p>
+
+                    <div className="flex items-center justify-between mt-1 gap-1">
+                      <p className={`text-[11px] truncate flex-1 min-w-0 ${
+                        contactUnreadCount > 0 ? 'font-semibold text-slate-900' : 'text-slate-500'
+                      }`}>
+                        {lastContactMsg ? (
+                          <>
+                            {lastContactMsg.senderId === currentUser?.id && (
+                              <span className="text-slate-700 font-medium">You: </span>
+                            )}
+                            {lastContactMsg.text || (lastContactMsg.mediaUrl ? '📷 Photo/Media' : 'Sent an attachment')}
+                          </>
+                        ) : (
+                          contact.designation || (contact.role === 'superadmin' ? 'Lead Admin' : 'Founder')
+                        )}
+                      </p>
+                      {contactUnreadCount > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-orange-600 text-white rounded-full min-w-4 text-center shrink-0 shadow-xs">
+                          {contactUnreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -296,7 +404,11 @@ export const TeamChatView = () => {
                     <Users className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
                 )}
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-orange-600" />
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-orange-600 ${
+                  selectedRecipient 
+                    ? ((onlineUserIds || []).includes(selectedRecipient.id) ? 'bg-emerald-400' : 'bg-slate-300')
+                    : (otherOnlineCount > 0 ? 'bg-emerald-400' : 'bg-slate-300')
+                }`} />
               </div>
 
               <div className="min-w-0 flex-1">
@@ -309,7 +421,11 @@ export const TeamChatView = () => {
                   )}
                 </h2>
                 <p className="text-[10px] md:text-[11px] text-orange-100/90 leading-tight truncate">
-                  {selectedRecipient ? (selectedRecipient.designation || 'Online') : 'Soham, Sayantan, Achinta, SSA Lead Admin'}
+                  {selectedRecipient ? (
+                    `${(onlineUserIds || []).includes(selectedRecipient.id) ? '🟢 Online' : '⚪ Offline'} • ${selectedRecipient.designation || 'Founder'}`
+                  ) : (
+                    `${otherOnlineCount > 0 ? `🟢 ${otherOnlineCount + 1} online` : '⚪ 1 online'} • Soham, Sayantan, Achinta, SSA Lead Admin`
+                  )}
                 </p>
               </div>
             </div>
